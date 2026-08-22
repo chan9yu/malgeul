@@ -1,0 +1,30 @@
+# vidscript
+
+한국어 대화가 담긴 영상(.mp4, .mov)을 올리면 대화 내용을 텍스트로 뽑아 주는 웹사이트다. 모든 처리가 브라우저 안에서 끝나고 영상은 기기 밖으로 나가지 않는다.
+
+## 특징
+
+- 서버가 없다. 영상에서 음성을 추출하고 텍스트로 바꾸는 과정 전부가 브라우저에서 일어난다
+- 타임스탬프 붙은 문장을 클릭하면 영상이 그 시점부터 재생된다
+- 결과를 복사하거나 txt와 srt, vtt 파일로 내려받는다
+- 지원 브라우저는 데스크톱 Chrome과 Edge 최신 버전이다
+
+## 문서
+
+문서는 성격에 따라 `docs/` 아래 폴더로 나뉜다. 만드는 것은 `docs/product/`에, 보이는 것은 `docs/design/`에, 생성 도구에 넣는 프롬프트는 `docs/prompts/`에 둔다. 무엇을 왜 만드는지는 `docs/product/PRD.md`부터 읽고, 배치 기준과 채우는 순서는 `docs/CLAUDE.md`에 적혀 있다.
+
+## 개발
+
+```bash
+pnpm install
+pnpm dev        # 개발 서버
+pnpm build      # 타입 검사와 프로덕션 빌드
+pnpm lint       # ESLint
+pnpm type:check # 타입 검사만
+```
+
+브랜치 전략과 커밋 컨벤션, 머지 전 검사는 [CONTRIBUTING.md](./CONTRIBUTING.md)에 있다.
+
+## 라이선스
+
+[MIT](./LICENSE)
