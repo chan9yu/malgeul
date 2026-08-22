@@ -1,0 +1,15 @@
+printWidth: 120
+tabWidth: 2
+useTabs: true
+singleQuote: true
+semi: true
+bracketSpacing: true
+arrowParens: always
+trailingComma: none
+jsxSingleQuote: false
+bracketSameLine: false
+overrides:
+  - files: '*.{yml,yaml}'
+    options:
+      useTabs: false
+      tabWidth: 2
