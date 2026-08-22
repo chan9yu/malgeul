@@ -1,0 +1,22 @@
+prepare-commit-msg:
+  jobs:
+    - name: template
+      run: node scripts/commit-msg.js {1}
+
+pre-commit:
+  parallel: true
+  skip:
+    - merge
+    - rebase
+  jobs:
+    - name: lint
+      glob: '*.{js,cjs,mjs,jsx,ts,tsx,mts,cts}'
+      run: pnpm run lint
+    - name: format
+      glob: '*.{js,cjs,mjs,jsx,ts,tsx,mts,cts,json,jsonc,yml,yaml,md,css,html}'
+      run: pnpm run format:check
+
+pre-push:
+  jobs:
+    - name: typecheck
+      run: pnpm type:check
