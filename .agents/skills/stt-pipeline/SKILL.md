@@ -20,7 +20,7 @@ OfflineAudioContext만 쓴다. ffmpeg.wasm을 붙이지 않는 이유는 SPEC �
 ```ts
 const bytes = await file.arrayBuffer();
 const probe = new OfflineAudioContext(1, 1, 16000);
-const decoded = await probe.decodeAudioData(bytes); // 원본 샘플레이트 AudioBuffer
+const decoded = await probe.decodeAudioData(bytes); // 컨텍스트 샘플레이트(16kHz)로 리샘플링된 AudioBuffer. 채널 수는 원본 그대로
 const target = new OfflineAudioContext(1, Math.ceil(decoded.duration * 16000), 16000);
 const source = target.createBufferSource();
 source.buffer = decoded;
@@ -32,8 +32,9 @@ const pcm = rendered.getChannelData(0); // Float32Array, Whisper 입력
 
 함정들:
 
+- `decodeAudioData`는 컨텍스트의 샘플레이트로 리샘플링해서 돌려준다. probe 컨텍스트를 16000으로 잡았으니 디코딩 결과가 이미 16kHz다. 같은 mov 파일을 16000 컨텍스트와 48000 컨텍스트에서 디코딩해 각각 148,346프레임과 445,040프레임이 나오는 것으로 확인했다. 다만 채널 수는 원본 그대로(스테레오면 2채널) 남으므로 모노로 만드는 두 번째 렌더 단계가 여전히 필요하다
 - 스테레오는 1채널 destination에 연결하면 자동으로 다운믹스된다. 채널 병합 코드를 따로 쓰지 않는다
-- 메모리가 병목이다. 2시간 영상의 원본 샘플레이트 디코딩 결과는 수 GB에 이를 수 있다. 리샘플링이 끝나면 `decoded`와 `bytes` 참조를 즉시 버린다. ROADMAP에 30분 이상 영상으로 메모리를 확인하는 항목이 있는 이유다
+- 메모리가 병목이다. 위 함정대로 probe 컨텍스트를 16000으로 잡으면 디코딩 결과가 이미 16kHz라 최악이 크게 줄어든다. 2시간 스테레오가 Float32로 약 921MB다(7200초 곱하기 16000 곱하기 4바이트 곱하기 2채널). 그래도 작지 않으니 리샘플링이 끝나면 `decoded` 참조를 버린다. `bytes`는 `decodeAudioData`가 detach하므로 따로 버리지 않아도 된다. ROADMAP에 30분 이상 영상으로 메모리를 확인하는 항목이 있는 이유다
 - `decodeAudioData`는 넘긴 ArrayBuffer를 detach한다. 같은 버퍼를 두 번 쓸 수 없다
 - 오디오 트랙이 없거나 해독 불가면 `decodeAudioData`가 거부된다. 이 거부를 잡아 SPEC의 실패 처리로 잇는다. 임의로 재시도하지 않는다
 
