@@ -50,7 +50,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 // 확인 화면에 머문 것도 실패로 찍혀 원인이 다른 두 상태가 같은 이름으로 보고된다.
 // 확인 화면에만 있는 "변환 시작" 을 함께 봐서 가른다.
 function readScreen(text) {
-	if (text.includes('변환된 문장')) {
+	// "새 영상 변환" 은 결과 화면에만 있다. 결과 화면이 문장 수를 적던 때에는 그 문구로 갈랐는데
+	// 목록이 들어오면서 그 문구가 사라졌다
+	if (text.includes('새 영상 변환')) {
 		return 'result';
 	}
 
@@ -120,26 +122,16 @@ function createClient(socket) {
 		});
 }
 
-// 결과 화면은 아직 문장 수만 그린다. 시각이 붙는 목록은 다음 마일스톤이라 화면에서는 확인할 수 없다.
-// 시각은 파이프라인이 내놓는 값이라 배포된 워커에 직접 물어 확인한다.
+// 화면의 목록은 시각을 mm:ss 까지만 적어 밀리초와 끝 시각이 보이지 않는다.
+// 그 값들은 파이프라인이 내놓는 것이라 배포된 워커에 직접 물어 확인한다.
 function buildTimestampProbe(workerAsset) {
 	return `(async () => {
-		// 갓 띄운 페이지에서는 오디오 디코더가 늦게 준비돼 첫 시도가 EncodingError 로 떨어진다.
-		// decodeAudioData 가 넘긴 버퍼를 detach 하므로 시도마다 다시 받아야 한다.
 		let decoded = null;
-		let lastCause = null;
-		for (let attempt = 0; attempt < 4; attempt += 1) {
-			try {
-				const bytes = await (await fetch('/${SERVED_FIXTURE}')).arrayBuffer();
-				decoded = await new OfflineAudioContext(1, 1, 16000).decodeAudioData(bytes);
-				break;
-			} catch (cause) {
-				lastCause = cause;
-				await new Promise((r) => setTimeout(r, 1500));
-			}
-		}
-		if (!decoded) {
-			return { error: '디코딩 실패: ' + (lastCause && lastCause.message) };
+		try {
+			const bytes = await (await fetch('/${SERVED_FIXTURE}')).arrayBuffer();
+			decoded = await new OfflineAudioContext(1, 1, 16000).decodeAudioData(bytes);
+		} catch (cause) {
+			return { error: '디코딩 실패: ' + (cause && cause.message) };
 		}
 		const target = new OfflineAudioContext(1, Math.ceil(decoded.duration * 16000), 16000);
 		const source = target.createBufferSource();
@@ -239,6 +231,10 @@ try {
 		throw new Error('WebGPU 어댑터가 없어 종단 확인을 진행할 수 없다');
 	}
 
+	// 사례마다 OfflineAudioContext 가 둘씩 쌓이고 렌더러가 그것을 페이지 이동으로 놓아주지 않는다.
+	// 넷을 돌린 뒤 디코딩하면 멀쩡한 파일도 EncodingError 로 떨어진다. 그래서 쌓이기 전에 먼저 잰다.
+	const timestamps = await evaluate(buildTimestampProbe(workerAsset));
+
 	for (const testCase of CASES) {
 		await send('Page.navigate', { url: `http://localhost:${PREVIEW_PORT}/` }, sessionId);
 		await wait(1500);
@@ -283,17 +279,11 @@ try {
 			...testCase,
 			outcome:
 				screen === 'confirm' ? '확인 화면에 머무름(변환 시작이 먹지 않음)' : screen === 'progress' ? 'timeout' : screen,
-			segmentCount: Number(/변환된 문장 (\d+)개/.exec(text)?.[1] ?? 0),
+			segmentCount: Number(await evaluate("document.querySelectorAll('ul li').length")),
 			messageOk: testCase.message ? text.includes(testCase.message) : true,
 			text: text.slice(0, 140)
 		});
 	}
-
-	// 사례를 네 번 돌린 페이지에는 OfflineAudioContext 가 여덟 개 쌓이고 직전 사례는 디코딩 실패까지 겪었다.
-	// 그 상태에서 디코딩하면 멀쩡한 파일도 EncodingError 로 떨어진다. 갓 띄운 페이지에서 잰다.
-	await send('Page.navigate', { url: `http://localhost:${PREVIEW_PORT}/` }, sessionId);
-	await wait(1500);
-	const timestamps = await evaluate(buildTimestampProbe(workerAsset));
 
 	console.log('\n화면 종단 결과');
 	let allPassed = true;

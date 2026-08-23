@@ -77,10 +77,18 @@ const uiPhrases = new Set([...quotedFrom('docs/design/DESIGN-SPEC.md'), ...quote
 // 뽑힌 것이 없으면 대조를 안 한 것이다. 조용히 통과하지 않도록 세운다
 check('문서 문구 추출', '따옴표 문구를 하나라도 뽑았다', uiPhrases.size > 0, `${uiPhrases.size}건`);
 for (const phrase of uiPhrases) {
-	// 형식 예시는 문구가 아니다
-	if (/^(312MB \/ 600MB|mm:ss|h:mm:ss|WEBVTT)$/.test(phrase)) continue;
+	// 형식 예시는 문구가 아니다.
+	// "txt 내려받기" 는 문서가 형태로 보인 것이고 코드는 형식마다 조합한다
+	if (/^(312MB \/ 600MB|mm:ss|h:mm:ss|WEBVTT|txt 내려받기)$/.test(phrase)) continue;
 	const files = findInCode(phrase);
 	check('문서 문구가 코드에 있음', phrase, files.length > 0, files.join(', '));
+}
+
+// 조합해 만드는 라벨은 위에서 건너뛰었다. 뒷말과 형식 셋이 코드에 있는지 따로 본다.
+// 실제로 그려지는 라벨 셋은 화면을 띄워 읽는 쪽에서 대조한다
+check('DESIGN-SPEC 대체 라벨', '내려받기 뒷말', findInCode(' 내려받기').length > 0);
+for (const format of ['txt', 'srt', 'vtt']) {
+	check('DESIGN-SPEC 대체 라벨', `${format} 형식`, findInCode(`'${format}'`).length > 0);
 }
 
 // ---- 5. 타이포그래피 표와 CSS ----
