@@ -101,7 +101,11 @@ export function App() {
 
 			case 'result':
 				return (
-					<ResultPage transcript={state.transcript} onNewVideo={() => dispatch({ type: 'NEW_VIDEO_REQUESTED' })} />
+					<ResultPage
+						accepted={state.accepted}
+						transcript={state.transcript}
+						onNewVideo={() => dispatch({ type: 'NEW_VIDEO_REQUESTED' })}
+					/>
 				);
 
 			case 'failure':
