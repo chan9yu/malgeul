@@ -11,7 +11,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const PREVIEW_PORT = 4180;
 const DIST_DIR = 'dist';
 const HARNESS_NAME = 'qa-harness.html';
 const CONNECT_RETRY_LIMIT = 40;
@@ -20,6 +19,23 @@ const PREVIEW_RETRY_LIMIT = 60;
 const CAPTURE_LIMIT_MS = 300_000;
 const POLL_MS = 2000;
 const ALLOWED_EXTERNAL_HOSTS = ['huggingface.co', 'cdn-lfs.huggingface.co', 'cdn-lfs-us-1.hf.co', 'us.aws.cdn.hf.co'];
+
+import { createServer } from 'node:net';
+
+// qa-inspector 가 같은 저장소에서 동시에 돌릴 수 있다. 포트를 고정하면 둘이 같은 서버를 보고
+// 서로의 결과를 자기 것으로 읽는다. 매번 비어 있는 포트를 받아 쓴다.
+function findFreePort() {
+	return new Promise((res, rej) => {
+		const probe = createServer();
+		probe.on('error', rej);
+		probe.listen(0, () => {
+			const { port } = probe.address();
+			probe.close(() => res(port));
+		});
+	});
+}
+
+const PREVIEW_PORT = await findFreePort();
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
