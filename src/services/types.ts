@@ -58,3 +58,6 @@ export interface Transcript {
 	/** 추출한 음성의 길이. 시각 표기를 mm:ss와 h:mm:ss 가운데 고르는 기준이다 */
 	durationSeconds: number;
 }
+
+/** 내보내기 형식이자 저장 파일의 확장자로 그대로 쓰인다 */
+export type ExportFormat = 'txt' | 'srt' | 'vtt';

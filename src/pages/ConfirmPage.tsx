@@ -21,7 +21,9 @@ export function ConfirmPage({ accepted, modelCached, onStart, onPickAnother }: C
 			<div className="flex flex-col gap-1 rounded-box border border-border bg-surface px-3 py-2">
 				<p className="text-body">{accepted.file.name}</p>
 				<p className="text-body text-text-sub">크기 {formatFileSize(accepted.file.size)}</p>
-				<p className="text-body text-text-sub">길이 {formatTimecode(accepted.durationSeconds)}</p>
+				<p className="text-body text-text-sub">
+					길이 {formatTimecode(accepted.durationSeconds, accepted.durationSeconds)}
+				</p>
 			</div>
 
 			<Callout tone="info">
