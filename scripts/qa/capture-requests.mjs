@@ -32,7 +32,7 @@ async function writeHarness(workerAsset) {
 	<body>
 		<p id="log">시작</p>
 		<script type="module">
-			const worker = new Worker('/assets/${workerAsset}', { type: 'module' });
+			const worker = new Worker('${BASE}assets/${workerAsset}', { type: 'module' });
 			worker.addEventListener('message', (event) => {
 				document.querySelector('#log').textContent = JSON.stringify(event.data).slice(0, 200);
 				if (event.data.type === 'model-ready' || event.data.type === 'failed') {
@@ -137,7 +137,21 @@ try {
 		.map((url) => new URL(url).pathname.split('/').slice(-1)[0]);
 	console.log(`외부로 나간 파일 이름: ${[...new Set(externalPaths)].join(', ')}`);
 	console.log(`\n허용 안 된 호스트: ${disallowed.length ? disallowed.join(', ') : '없음'}`);
-	console.log(jsdelivr.length === 0 && disallowed.length === 0 ? '\n판정: 통과' : '\n판정: 실패');
+
+	// 워커가 아무것도 못 받으면 jsdelivr 도 0건이고 허용 안 된 호스트도 없다. 둘만 보면 그 상태가 통과로 찍힌다.
+	// 실제로 모델을 받아 WebGPU 세션까지 만든 것을 확인해야 이 측정이 무언가를 본 것이다.
+	const reachedReady = done === 'model-ready';
+	const loadedWasm = wasmRequests.length > 0;
+	const passed = reachedReady && loadedWasm && jsdelivr.length === 0 && disallowed.length === 0;
+
+	if (!reachedReady) {
+		console.log(`\n측정이 성립하지 않았다: 워커가 model-ready 에 닿지 못했다 (${done ?? '시간 안에 끝나지 않음'})`);
+	}
+	if (!loadedWasm) {
+		console.log('측정이 성립하지 않았다: wasm 요청이 0건이다');
+	}
+
+	console.log(passed ? '\n판정: 통과' : '\n판정: 실패');
 } finally {
 	await chrome.close();
 	preview.kill();
