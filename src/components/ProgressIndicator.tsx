@@ -1,9 +1,5 @@
 import type { PipelineProgress, PipelineStage } from '../services';
-import { formatBytesProgress } from '../services';
-
-const PERCENT_MAX = 100;
-
-const STAGE_ORDER: readonly PipelineStage[] = ['model', 'audio', 'transcribe'];
+import { formatBytesProgress, PIPELINE_STAGES, toPercent } from '../services';
 
 const STAGE_LABEL: Record<PipelineStage, string> = {
 	model: '모델 준비',
@@ -16,13 +12,7 @@ function readBarPercent(progress: PipelineProgress) {
 		return progress.percent;
 	}
 
-	if (progress.totalBytes <= 0) {
-		return PERCENT_MAX;
-	}
-
-	const ratio = (progress.loadedBytes / progress.totalBytes) * PERCENT_MAX;
-
-	return Math.min(PERCENT_MAX, Math.max(0, ratio));
+	return toPercent(progress.loadedBytes, progress.totalBytes);
 }
 
 function readAmountLabel(progress: PipelineProgress) {
@@ -50,12 +40,12 @@ interface ProgressIndicatorProps {
 }
 
 export function ProgressIndicator({ progress }: ProgressIndicatorProps) {
-	const currentIndex = STAGE_ORDER.indexOf(progress.stage);
+	const currentIndex = PIPELINE_STAGES.indexOf(progress.stage);
 
 	return (
 		<div className="flex flex-col gap-3">
 			<ul className="flex flex-col gap-1">
-				{STAGE_ORDER.map((stage, index) => (
+				{PIPELINE_STAGES.map((stage, index) => (
 					<li key={stage} className="flex items-center gap-1 text-body">
 						<span className="w-2 text-brand">{index < currentIndex ? '✓' : ''}</span>
 						<span className={stageTextClass(index, currentIndex)}>{STAGE_LABEL[stage]}</span>

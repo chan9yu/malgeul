@@ -1,11 +1,9 @@
+import { PipelineError } from './pipeline.error';
 import type { TranscriptionFailure } from './types';
 
-export class TranscriptionError extends Error {
-	readonly failure: TranscriptionFailure;
-
+export class TranscriptionError extends PipelineError {
 	constructor(failure: TranscriptionFailure, cause?: unknown) {
-		super(`transcription failed: ${failure}`, { cause });
+		super(`transcription failed: ${failure}`, failure, cause);
 		this.name = 'TranscriptionError';
-		this.failure = failure;
 	}
 }

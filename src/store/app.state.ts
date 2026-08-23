@@ -18,7 +18,7 @@ export type AppEvent =
 	| { readonly type: 'CONVERSION_FAILED'; readonly failure: PipelineFailure }
 	| { readonly type: 'NEW_VIDEO_REQUESTED' }; // "새 영상 변환"
 
-export const FRESH_UPLOAD_STATE: AppState = {
+const FRESH_UPLOAD_STATE: AppState = {
 	name: 'upload',
 	rejection: null
 };

@@ -39,7 +39,15 @@ async function decodeAudioTrack(bytes: ArrayBuffer) {
 	}
 }
 
+/**
+ * decodeAudioData가 이미 16kHz로 리샘플링해 두므로 남은 일은 다운믹스뿐이다.
+ * 입력이 모노면 바꿀 것이 없어 채널을 그대로 돌려준다.
+ */
 async function renderMonoPcm(decoded: AudioBuffer) {
+	if (decoded.numberOfChannels === TARGET_CHANNEL_COUNT) {
+		return decoded.getChannelData(0);
+	}
+
 	const frameCount = Math.ceil(decoded.duration * TARGET_SAMPLE_RATE);
 
 	try {
