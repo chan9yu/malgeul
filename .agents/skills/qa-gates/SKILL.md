@@ -1,11 +1,11 @@
 ---
 name: qa-gates
-description: vidscript 검증 절차. 구현 완료 판정, 게이트 실행, 정본 문서 대비 검증, 경계면 교차 비교, ROADMAP 체크리스트 갱신 작업이면 반드시 이 스킬을 읽는다. 모듈 하나가 끝날 때마다 실행하고 전체 완성까지 미루지 않는다.
+description: 말글 검증 절차. 구현 완료 판정, 게이트 실행, 정본 문서 대비 검증, 경계면 교차 비교, ROADMAP 체크리스트 갱신 작업이면 반드시 이 스킬을 읽는다. 모듈 하나가 끝날 때마다 실행하고 전체 완성까지 미루지 않는다.
 ---
 
 # qa-gates
 
-vidscript 구현이 정본 문서와 일치하는지 검증하는 절차다. 핵심은 존재 확인이 아니라 교차 비교다. "생성기가 있는가"가 아니라 "생성기의 출력이 SPEC의 예시와 일치하는가"를 확인한다.
+말글 구현이 정본 문서와 일치하는지 검증하는 절차다. 핵심은 존재 확인이 아니라 교차 비교다. "생성기가 있는가"가 아니라 "생성기의 출력이 SPEC의 예시와 일치하는가"를 확인한다.
 
 ## 게이트
 
@@ -40,17 +40,34 @@ pnpm format:check
 
 그래서 이 항목은 두 단계로 본다. 먼저 `dist`를 빌드해 산출물에서 외부 호스트 문자열을 찾고, 다음으로 `pnpm preview`로 프로덕션 산출물을 띄워 실제 요청을 수집한다. 개발 서버는 `node_modules`에서 직접 서브하므로 이 결함이 보이지 않는다. 반드시 프로덕션 빌드에서 확인한다.
 
-같은 이유로 `base`를 바꿀 때도 산출물을 다시 본다. 워커 안의 wasm 경로가 `new URL('/assets/...', self.location.href)` 형태라 호스트 루트를 기준으로 삼는다. GitHub Pages 하위 경로로 배포하면서 이 문자열이 `/vidscript/assets/...`로 바뀌지 않으면 배포 사이트에서만 404가 나고 로컬 미리보기는 멀쩡하다. `base`를 넣은 뒤 `dist`에서 이 경로를 직접 찾아 확인한다.
+같은 이유로 `base`를 바꿀 때도 산출물을 다시 본다. 워커 안의 wasm 경로가 `new URL('/assets/...', self.location.href)` 형태라 호스트 루트를 기준으로 삼는다. GitHub Pages 하위 경로로 배포하면서 이 문자열이 `/말글/assets/...`로 바뀌지 않으면 배포 사이트에서만 404가 나고 로컬 미리보기는 멀쩡하다. `base`를 넣은 뒤 `dist`에서 이 경로를 직접 찾아 확인한다.
 
 ## 검증 스크립트
 
-눈으로 훑지 말고 실행해 비교한다. 생성기 검증은 이런 식이다.
+눈으로 훑지 말고 실행해 비교한다. `scripts/qa/`에 있고 전부 `node`로 돌린다.
+
+Chrome이 필요 없어 빠른 것부터 본다.
 
 ```bash
-pnpm exec tsx scripts/qa/verify-exporters.ts
+node scripts/qa/verify-exporters.mjs       # SPEC 출력 예시와 생성기 출력 대조
+node scripts/qa/verify-docs-strings.mjs    # 정본 문구와 코드 문자열 대조
+node scripts/qa/verify-screen-contents.mjs # 화면이 실제로 닿는 문구 대조
+```
+
+실제 Chrome을 띄우는 것들이다. `pnpm build` 뒤에 돌린다.
+
+```bash
+node scripts/qa/verify-result-screen.mjs   # 결과 화면. 모델을 받지 않아 빠르다
+node scripts/qa/verify-end-to-end.mjs      # mp4와 mov 종단. 모델 566MB를 받아 10분 넘는다
+node scripts/qa/capture-requests.mjs       # 외부 요청 수집. 마찬가지로 오래 걸린다
+node scripts/qa/measure-audio.mjs <파일>   # 추출한 PCM을 숫자로 잰다
 ```
 
 스크립트가 없으면 만들어 `scripts/qa/`에 둔다. 같은 검증을 반복하게 되므로 일회용으로 버리지 않는다.
+
+**만든 검사가 실제로 잡는지 먼저 확인한다.** 일부러 깨뜨려 실패가 나는 것을 보고 되돌린다. 통과만 보고 끝내면 그 통과가 진짜인지 알 수 없다.
+
+**게이트에 걸리는 자리에 둔다.** 어느 게이트도 부르지 않는 검사는 한 번도 돌지 않는다. 순수 함수 검사는 `src/**/*.test.ts`로 두어 `pnpm test`가 수집하게 하고, 브라우저가 필요한 것만 `scripts/qa/`에 둔다. 만든 뒤 `pnpm exec vitest list`로 실제 수집되는지 본다.
 
 ## ROADMAP 체크리스트 갱신
 

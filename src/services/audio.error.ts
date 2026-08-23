@@ -1,11 +1,9 @@
+import { PipelineError } from './pipeline.error';
 import type { AudioExtractionFailure } from './types';
 
-export class AudioExtractionError extends Error {
-	readonly failure: AudioExtractionFailure;
-
+export class AudioExtractionError extends PipelineError {
 	constructor(failure: AudioExtractionFailure, cause?: unknown) {
-		super(`audio extraction failed: ${failure}`, { cause });
+		super(`audio extraction failed: ${failure}`, failure, cause);
 		this.name = 'AudioExtractionError';
-		this.failure = failure;
 	}
 }

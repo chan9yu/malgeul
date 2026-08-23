@@ -1,15 +1,16 @@
 import {
-	AudioExtractionError,
 	extractAudio,
 	type ExtractedAudio,
 	formatBytesProgress,
 	isModelCached,
+	PIPELINE_STAGES,
+	PipelineError,
 	type PipelineFailure,
 	type PipelineProgress,
 	type PipelineStage,
+	toPercent,
 	transcribeVideo,
-	type Transcript,
-	TranscriptionError
+	type Transcript
 } from '../services';
 import { encodeWav } from './wav.encoder';
 
@@ -31,8 +32,6 @@ const STAGE_TEXT: Record<PipelineStage, string> = {
 	audio: '음성 추출',
 	transcribe: '변환'
 };
-
-const STAGE_ORDER: PipelineStage[] = ['model', 'audio', 'transcribe'];
 
 function findElement<T extends Element>(selector: string, elementType: new () => T) {
 	const element = document.querySelector(selector);
@@ -102,7 +101,7 @@ function showAudioResult(file: File, audio: ExtractedAudio, elapsedMs: number) {
 }
 
 function describeFailure(cause: unknown) {
-	if (cause instanceof AudioExtractionError || cause instanceof TranscriptionError) {
+	if (cause instanceof PipelineError) {
 		return `실패 [${cause.failure}] ${FAILURE_TEXT[cause.failure]}`;
 	}
 
@@ -115,10 +114,10 @@ function clearStages() {
 }
 
 function renderStages(current: PipelineStage, detail: string) {
-	const currentIndex = STAGE_ORDER.indexOf(current);
+	const currentIndex = PIPELINE_STAGES.indexOf(current);
 
 	stageList.replaceChildren(
-		...STAGE_ORDER.map((stage, index) => {
+		...PIPELINE_STAGES.map((stage, index) => {
 			const item = document.createElement('li');
 			const mark = index < currentIndex ? '완료' : index === currentIndex ? '진행 중' : '대기';
 			const suffix = index === currentIndex ? ` ${detail}` : '';
@@ -132,7 +131,7 @@ function renderStages(current: PipelineStage, detail: string) {
 function showProgress(progress: PipelineProgress) {
 	if (progress.kind === 'bytes') {
 		renderStages(progress.stage, formatBytesProgress(progress));
-		stageProgress.value = (progress.loadedBytes / Math.max(1, progress.totalBytes)) * 100;
+		stageProgress.value = toPercent(progress.loadedBytes, progress.totalBytes);
 		return;
 	}
 
@@ -187,17 +186,13 @@ function resetOutput() {
 	clearPreview();
 }
 
-async function runExtraction(file: File) {
+async function runTask(label: string, task: () => Promise<void>) {
 	setBusy(true);
-	statusText.textContent = '추출하고 있습니다';
+	statusText.textContent = `${label}하고 있습니다`;
 	resetOutput();
 
-	const startedAt = performance.now();
-
 	try {
-		const audio = await extractAudio(file);
-		statusText.textContent = '추출 성공';
-		showAudioResult(file, audio, performance.now() - startedAt);
+		await task();
 	} catch (cause) {
 		console.error(cause);
 		statusText.textContent = describeFailure(cause);
@@ -206,24 +201,25 @@ async function runExtraction(file: File) {
 	}
 }
 
-async function runTranscription(file: File) {
-	setBusy(true);
-	statusText.textContent = '변환하고 있습니다';
-	resetOutput();
+function runExtraction(file: File) {
+	return runTask('추출', async () => {
+		const startedAt = performance.now();
+		const audio = await extractAudio(file);
 
-	const startedAt = performance.now();
+		statusText.textContent = '추출 성공';
+		showAudioResult(file, audio, performance.now() - startedAt);
+	});
+}
 
-	try {
+function runTranscription(file: File) {
+	return runTask('변환', async () => {
+		const startedAt = performance.now();
 		const transcript = await transcribeVideo(file, showProgress);
+
 		statusText.textContent = `변환 성공. 걸린 시간 ${formatSeconds((performance.now() - startedAt) / MS_PER_SECOND)}`;
 		renderSegments(transcript);
 		await showCacheState();
-	} catch (cause) {
-		console.error(cause);
-		statusText.textContent = describeFailure(cause);
-	} finally {
-		setBusy(false);
-	}
+	});
 }
 
 fileInput.addEventListener('change', () => {
@@ -233,23 +229,20 @@ fileInput.addEventListener('change', () => {
 	setBusy(false);
 });
 
-extractButton.addEventListener('click', () => {
-	const file = fileInput.files?.[0];
-	if (!file) {
-		return;
-	}
+function onFileClick(button: HTMLButtonElement, run: (file: File) => void) {
+	button.addEventListener('click', () => {
+		const file = fileInput.files?.[0];
 
-	void runExtraction(file);
-});
+		if (!file) {
+			return;
+		}
 
-transcribeButton.addEventListener('click', () => {
-	const file = fileInput.files?.[0];
-	if (!file) {
-		return;
-	}
+		run(file);
+	});
+}
 
-	void runTranscription(file);
-});
+onFileClick(extractButton, (file) => void runExtraction(file));
+onFileClick(transcribeButton, (file) => void runTranscription(file));
 
 cacheButton.addEventListener('click', () => {
 	void showCacheState();

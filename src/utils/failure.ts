@@ -1,5 +1,5 @@
 import type { PipelineFailure } from '../services';
-import { AudioExtractionError, TranscriptionError } from '../services';
+import { PipelineError } from '../services';
 
 export const FAILURE_MESSAGE: Record<PipelineFailure, string> = {
 	FILE_READ: '파일을 읽지 못했습니다. 파일이 옮겨지거나 지워졌을 수 있습니다',
@@ -12,13 +12,9 @@ export const FAILURE_MESSAGE: Record<PipelineFailure, string> = {
 	UNKNOWN: '변환 중 알 수 없는 문제가 생겼습니다'
 };
 
-/** 파이프라인은 두 에러 클래스만 던진다. 그 밖의 예외는 단계를 가려낼 수 없어 UNKNOWN이 된다 */
+/** 파이프라인은 PipelineError만 던진다. 그 밖의 예외는 단계를 가려낼 수 없어 UNKNOWN이 된다 */
 export function toFailureCode(cause: unknown): PipelineFailure {
-	if (cause instanceof AudioExtractionError) {
-		return cause.failure;
-	}
-
-	if (cause instanceof TranscriptionError) {
+	if (cause instanceof PipelineError) {
 		return cause.failure;
 	}
 

@@ -7,10 +7,11 @@ import { createRoot } from 'react-dom/client';
 
 import { ResultPage } from '../../../src/pages/ResultPage';
 import type { Transcript, TranscriptSegment } from '../../../src/services';
+import { readVideoDuration } from '../../../src/utils/upload.duration';
 
 const params = new URLSearchParams(window.location.search);
 const scenario = params.get('scenario') ?? 'basic';
-const videoPath = params.get('video') ?? '/_workspace/fixtures/korean-short.mp4';
+const videoPath = params.get('video') ?? `${import.meta.env.BASE_URL}_workspace/fixtures/korean-short.mp4`;
 const segmentCount = Number(params.get('count') ?? '6');
 const durationOverride = params.get('duration');
 
@@ -28,24 +29,6 @@ async function loadVideoFile() {
 	const blob = await response.blob();
 
 	return new File([blob], 'meeting.mp4', { type: 'video/mp4' });
-}
-
-function readDuration(file: File) {
-	return new Promise<number>((resolve, reject) => {
-		const url = URL.createObjectURL(file);
-		const probe = document.createElement('video');
-
-		probe.preload = 'metadata';
-		probe.onloadedmetadata = () => {
-			URL.revokeObjectURL(url);
-			resolve(probe.duration);
-		};
-		probe.onerror = () => {
-			URL.revokeObjectURL(url);
-			reject(new Error('영상 길이를 읽지 못했다'));
-		};
-		probe.src = url;
-	});
 }
 
 // 구간을 영상 길이 안에 고르게 편다. 마지막 구간은 영상 끝보다 앞에서 끝나 위쪽 경계가 없는 자리를 만든다
@@ -70,7 +53,11 @@ function buildSegments(count: number, videoSeconds: number): TranscriptSegment[]
 }
 
 const file = await loadVideoFile();
-const videoSeconds = await readDuration(file);
+const videoSeconds = await readVideoDuration(file);
+if (!Number.isFinite(videoSeconds)) {
+	throw new Error('영상 길이를 읽지 못했다');
+}
+
 const count = scenario === 'empty' ? 0 : scenario === 'many' ? segmentCount : Math.min(segmentCount, SENTENCES.length);
 
 const transcript: Transcript = {

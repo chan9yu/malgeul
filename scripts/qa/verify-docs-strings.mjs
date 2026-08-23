@@ -1,25 +1,19 @@
 // 정본 문서에서 문자열과 값을 뽑아 코드와 무가공 대조한다.
 // 눈으로 훑으면 조사 한 글자와 공백 하나를 놓친다.
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+
+import { createChecklist } from './checklist.mjs';
 
 const read = (p) => readFileSync(p, 'utf8');
 
-function walk(dir, out = []) {
-	for (const entry of readdirSync(dir)) {
-		const full = join(dir, entry);
-		if (statSync(full).isDirectory()) walk(full, out);
-		else out.push(full);
-	}
-	return out;
-}
-
-const sourceFiles = walk('src').filter((f) => /\.(ts|tsx|css)$/.test(f));
+const sourceFiles = readdirSync('src', { recursive: true })
+	.map((entry) => join('src', entry))
+	.filter((f) => /\.(ts|tsx|css)$/.test(f));
 const codeFiles = sourceFiles.filter((f) => !f.endsWith('.test.ts'));
 const code = codeFiles.map((f) => ({ file: f, text: read(f) }));
 
-const results = [];
-const check = (group, label, ok, detail = '') => results.push({ group, label, ok, detail });
+const { check, report } = createChecklist();
 
 // 코드 어딘가에 그 문자열이 있는지. 어느 파일인지도 돌려준다
 function findInCode(needle) {
@@ -127,16 +121,4 @@ check('DESIGN-SPEC 치수', '열 640px', css.includes('--container-column: 640px
 check('DESIGN 간격', '모서리 반경 8px', css.includes('--radius-box: 8px;'));
 check('DESIGN 간격', '간격 8px 배수', css.includes('--spacing: 8px;'));
 
-// ---- 출력 ----
-let failed = 0;
-let currentGroup = '';
-for (const r of results) {
-	if (r.group !== currentGroup) {
-		console.log(`\n[${r.group}]`);
-		currentGroup = r.group;
-	}
-	if (!r.ok) failed++;
-	console.log(`  ${r.ok ? '통과' : '실패'}  ${r.label}${r.detail && !r.ok ? `  (${r.detail})` : ''}`);
-}
-console.log(`\n대조 ${results.length}건, 실패 ${failed}건`);
-process.exit(failed > 0 ? 1 : 0);
+process.exit(report() > 0 ? 1 : 0);

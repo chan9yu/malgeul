@@ -3,8 +3,9 @@ export const MODEL_ID = 'onnx-community/whisper-large-v3-turbo';
 export const MODEL_DEVICE = 'webgpu';
 
 /**
- * 합쳐서 약 563MB를 내려받는다. 파일마다 다른 값을 주려면 파일 이름이 아니라 세션 이름을 키로 써야
- * 하고, 인코더의 세션 이름은 model이라 키를 틀리면 조용히 fp32로 떨어져 3GB가 된다.
+ * 합쳐서 약 563MB를 내려받는다. 화면 문구는 이 크기를 올려 600MB로 적는다.
+ * 파일마다 다른 값을 주려면 파일 이름이 아니라 세션 이름을 키로 써야 하고, 인코더의 세션 이름은
+ * model이라 키를 틀리면 조용히 fp32로 떨어져 3GB가 된다.
  */
 export const MODEL_DTYPE = 'q4f16';
 

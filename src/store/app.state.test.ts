@@ -1,38 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Transcript } from '../services';
-import type { AcceptedFile } from '../utils/upload.validation';
 import type { AppEvent, AppState } from './app.state';
 import { createInitialAppState, reduceApp } from './app.state';
-
-const accepted: AcceptedFile = {
-	file: new File([], 'meeting.mp4'),
-	durationSeconds: 12
-};
-
-const transcript: Transcript = {
-	segments: [{ startSeconds: 0, endSeconds: 3, text: '안녕하세요' }],
-	durationSeconds: 12
-};
-
-const STATES: readonly AppState[] = [
-	{ name: 'upload', rejection: null },
-	{ name: 'confirm', accepted },
-	{ name: 'converting', accepted },
-	{ name: 'result', accepted, transcript },
-	{ name: 'failure', failure: 'DECODE' },
-	{ name: 'unsupported' }
-];
-
-const EVENTS: readonly AppEvent[] = [
-	{ type: 'FILE_ACCEPTED', accepted },
-	{ type: 'FILE_REJECTED', rejection: 'SIZE' },
-	{ type: 'CONVERSION_REQUESTED' },
-	{ type: 'ANOTHER_FILE_REQUESTED' },
-	{ type: 'CONVERSION_SUCCEEDED', transcript },
-	{ type: 'CONVERSION_FAILED', failure: 'DECODE' },
-	{ type: 'NEW_VIDEO_REQUESTED' }
-];
+import { ACCEPTED_FILE as accepted, ALL_EVENTS, ALL_STATES, TRANSCRIPT as transcript } from './app.state.fixture';
 
 type TransitionTable = Record<AppState['name'], Partial<Record<AppEvent['type'], AppState['name']>>>;
 
@@ -56,8 +26,8 @@ describe('createInitialAppState', () => {
 });
 
 describe('reduceApp 전이 표', () => {
-	for (const state of STATES) {
-		for (const event of EVENTS) {
+	for (const state of ALL_STATES) {
+		for (const event of ALL_EVENTS) {
 			const expectedName = ALLOWED_TRANSITIONS[state.name][event.type];
 
 			if (expectedName) {

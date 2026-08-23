@@ -22,11 +22,10 @@ export interface ExtractedAudio {
 	durationSeconds: number;
 }
 
-/** 진행 화면의 단계 목록에 이 순서로 놓인다 */
-export type PipelineStage =
-	| 'model' // 모델 준비
-	| 'audio' // 음성 추출
-	| 'transcribe'; // 변환
+/** 파이프라인이 실행하는 순서다. 진행 화면의 단계 목록도 이 순서로 놓인다 */
+export const PIPELINE_STAGES = ['model', 'audio', 'transcribe'] as const;
+
+export type PipelineStage = (typeof PIPELINE_STAGES)[number];
 
 /** 모델을 실제로 내려받는 동안에만 나온다. 캐시에서 읽으면 이 이벤트 없이 model 단계가 끝난다 */
 export interface BytesProgress {

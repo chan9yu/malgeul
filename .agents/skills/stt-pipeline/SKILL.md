@@ -1,6 +1,6 @@
 ---
 name: stt-pipeline
-description: vidscript의 오디오 추출과 음성 인식, 자막 생성 구현 지식. OfflineAudioContext 디코딩, 16kHz 리샘플링, transformers.js Whisper 실행, WebGPU, 모델 캐시, 진행률, txt와 srt, vtt 생성기를 만들거나 고치는 작업이면 반드시 이 스킬을 읽는다. 화면 컴포넌트나 CSS 작업은 ui-conventions가 담당한다.
+description: 말글의 오디오 추출과 음성 인식, 자막 생성 구현 지식. OfflineAudioContext 디코딩, 16kHz 리샘플링, transformers.js Whisper 실행, WebGPU, 모델 캐시, 진행률, txt와 srt, vtt 생성기를 만들거나 고치는 작업이면 반드시 이 스킬을 읽는다. 화면 컴포넌트나 CSS 작업은 ui-conventions가 담당한다.
 ---
 
 # stt-pipeline

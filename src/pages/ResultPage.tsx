@@ -26,20 +26,24 @@ export function ResultPage({ accepted, transcript, onNewVideo }: ResultPageProps
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const [playingIndex, setPlayingIndex] = useState(NO_PLAYING_SEGMENT);
 	const [copyNotice, setCopyNotice] = useState<CopyNotice>('idle');
-	/** 알림이 떠 있는 동안 다시 누르면 copyNotice 값이 같아 effect가 다시 돌지 않는다. 누름마다 늘려 타이머를 새로 건다 */
-	const [copyPressCount, setCopyPressCount] = useState(0);
+	const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	useEffect(() => {
-		if (copyNotice === 'idle') {
-			return;
+		return () => {
+			if (noticeTimerRef.current !== null) {
+				clearTimeout(noticeTimerRef.current);
+			}
+		};
+	}, []);
+
+	const showCopyNotice = (notice: CopyNotice) => {
+		if (noticeTimerRef.current !== null) {
+			clearTimeout(noticeTimerRef.current);
 		}
 
-		const timer = setTimeout(() => setCopyNotice('idle'), COPY_NOTICE_MS);
-
-		return () => {
-			clearTimeout(timer);
-		};
-	}, [copyNotice, copyPressCount]);
+		setCopyNotice(notice);
+		noticeTimerRef.current = setTimeout(() => setCopyNotice('idle'), COPY_NOTICE_MS);
+	};
 
 	const handleSelect = (index: number) => {
 		const video = videoRef.current;
@@ -59,12 +63,10 @@ export function ResultPage({ accepted, transcript, onNewVideo }: ResultPageProps
 	const copyAll = async () => {
 		try {
 			await navigator.clipboard.writeText(buildTxt(transcript));
-			setCopyNotice('copied');
+			showCopyNotice('copied');
 		} catch {
-			setCopyNotice('failed');
+			showCopyNotice('failed');
 		}
-
-		setCopyPressCount((count) => count + 1);
 	};
 
 	const handleCopyAll = () => {
