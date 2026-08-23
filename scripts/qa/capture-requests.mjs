@@ -11,6 +11,8 @@ import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { readBase } from './base-url.mjs';
+
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const DIST_DIR = 'dist';
 const HARNESS_NAME = 'qa-harness.html';
@@ -36,6 +38,7 @@ function findFreePort() {
 }
 
 const PREVIEW_PORT = await findFreePort();
+const BASE = await readBase();
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -79,7 +82,7 @@ async function writeHarness(workerAsset) {
 async function waitForPreview() {
 	for (let attempt = 0; attempt < PREVIEW_RETRY_LIMIT; attempt += 1) {
 		try {
-			const response = await fetch(`http://localhost:${PREVIEW_PORT}/${HARNESS_NAME}`);
+			const response = await fetch(`http://localhost:${PREVIEW_PORT}${BASE}${HARNESS_NAME}`);
 			if (response.ok) {
 				return;
 			}
@@ -189,7 +192,7 @@ try {
 	await send('Network.enable', {}, sessionId);
 	await send('Page.enable', {}, sessionId);
 	await send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: false, flatten: true }, sessionId);
-	await send('Page.navigate', { url: `http://localhost:${PREVIEW_PORT}/${HARNESS_NAME}` }, sessionId);
+	await send('Page.navigate', { url: `http://localhost:${PREVIEW_PORT}${BASE}${HARNESS_NAME}` }, sessionId);
 
 	const deadline = Date.now() + CAPTURE_LIMIT_MS;
 	let done = null;
