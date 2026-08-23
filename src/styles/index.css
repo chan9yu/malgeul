@@ -1,109 +1,99 @@
-:root {
-	--text: #6b6375;
-	--text-h: #08060d;
-	--bg: #fff;
-	--border: #e5e4e7;
-	--code-bg: #f4f3ec;
-	--accent: #aa3bff;
-	--accent-bg: rgba(170, 59, 255, 0.1);
-	--accent-border: rgba(170, 59, 255, 0.5);
-	--social-bg: rgba(244, 243, 236, 0.5);
-	--shadow: rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+@import 'tailwindcss';
 
-	--sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-	--heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-	--mono: ui-monospace, Consolas, monospace;
-
-	font: 18px/145% var(--sans);
-	letter-spacing: 0.18px;
-	color-scheme: light dark;
-	color: var(--text);
-	background: var(--bg);
-	font-synthesis: none;
-	text-rendering: optimizeLegibility;
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
-
-	@media (max-width: 1024px) {
-		font-size: 16px;
-	}
+@font-face {
+	font-family: 'Pretendard';
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url('/fonts/Pretendard-Regular.subset.woff2') format('woff2');
 }
 
-@media (prefers-color-scheme: dark) {
-	:root {
-		--text: #9ca3af;
-		--text-h: #f3f4f6;
-		--bg: #16171d;
-		--border: #2e303a;
-		--code-bg: #1f2028;
-		--accent: #c084fc;
-		--accent-bg: rgba(192, 132, 252, 0.15);
-		--accent-border: rgba(192, 132, 252, 0.5);
-		--social-bg: rgba(47, 48, 58, 0.5);
-		--shadow: rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-	}
-
-	#social .button-icon {
-		filter: invert(1) brightness(2);
-	}
-}
-
-#root {
-	width: 1126px;
-	max-width: 100%;
-	margin: 0 auto;
-	text-align: center;
-	border-inline: 1px solid var(--border);
-	min-height: 100svh;
-	display: flex;
-	flex-direction: column;
-	box-sizing: border-box;
-}
-
-body {
-	margin: 0;
-}
-
-h1,
-h2 {
-	font-family: var(--heading);
+@font-face {
+	font-family: 'Pretendard';
+	font-style: normal;
 	font-weight: 500;
-	color: var(--text-h);
+	font-display: swap;
+	src: url('/fonts/Pretendard-Medium.subset.woff2') format('woff2');
 }
 
-h1 {
-	font-size: 56px;
-	letter-spacing: -1.68px;
-	margin: 32px 0;
-	@media (max-width: 1024px) {
-		font-size: 36px;
-		margin: 20px 0;
+@font-face {
+	font-family: 'Pretendard';
+	font-style: normal;
+	font-weight: 600;
+	font-display: swap;
+	src: url('/fonts/Pretendard-SemiBold.subset.woff2') format('woff2');
+}
+
+@font-face {
+	font-family: 'Pretendard';
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url('/fonts/Pretendard-Bold.subset.woff2') format('woff2');
+}
+
+@theme static {
+	--color-brand: #0d7a5c;
+	--color-brand-strong: #0a5f48;
+	--color-brand-soft: #e6f4ef;
+	--color-text: #1b1f23;
+	--color-text-sub: #5c6670;
+	--color-bg: #ffffff;
+	--color-surface: #f5f8f7;
+	--color-border: #e2e8e5;
+	--color-danger: #c2483f;
+	--color-danger-soft: #fbefee;
+
+	--font-sans: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+
+	--text-title: 28px;
+	--text-title--line-height: 1.4;
+	--text-title--font-weight: 700;
+	--text-title--letter-spacing: -0.02em;
+
+	--text-section: 20px;
+	--text-section--line-height: 1.5;
+	--text-section--font-weight: 600;
+	--text-section--letter-spacing: -0.02em;
+
+	--text-body: 16px;
+	--text-body--line-height: 1.8;
+	--text-body--font-weight: 400;
+
+	--text-sub: 14px;
+	--text-sub--line-height: 1.6;
+	--text-sub--font-weight: 400;
+
+	--text-timestamp: 13px;
+	--text-timestamp--line-height: 1;
+	--text-timestamp--font-weight: 500;
+
+	--spacing: 8px;
+
+	--radius-box: 8px;
+
+	--container-content: 1200px;
+	--container-column: 640px;
+}
+
+@layer base {
+	html {
+		height: 100%;
 	}
-}
-h2 {
-	font-size: 24px;
-	line-height: 118%;
-	letter-spacing: -0.24px;
-	margin: 0 0 8px;
-	@media (max-width: 1024px) {
-		font-size: 20px;
+
+	body {
+		height: 100%;
+		margin: 0;
+		font-family: var(--font-sans);
+		font-size: var(--text-body);
+		line-height: var(--text-body--line-height);
+		color: var(--color-text);
+		background-color: var(--color-bg);
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
 	}
-}
-p {
-	margin: 0;
-}
 
-code,
-.counter {
-	font-family: var(--mono);
-	display: inline-flex;
-	border-radius: 4px;
-	color: var(--text-h);
-}
-
-code {
-	font-size: 15px;
-	line-height: 135%;
-	padding: 4px 8px;
-	background: var(--code-bg);
+	#root {
+		height: 100%;
+	}
 }
