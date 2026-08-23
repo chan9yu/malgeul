@@ -4,12 +4,12 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<title>vidscript 오디오 추출 검증</title>
+		<title>vidscript 파이프라인 검증</title>
 		<!-- 검증용 임시 페이지다. 디자인 토큰과 앱 스타일시트를 쓰지 않고 브라우저 기본 스타일에 여백만 준다 -->
 		<style>
 			body {
 				margin: 24px;
-				max-width: 640px;
+				max-width: 860px;
 				font-family: monospace;
 			}
 			dt {
@@ -21,23 +21,77 @@
 			audio {
 				width: 100%;
 			}
+			table {
+				border-collapse: collapse;
+				width: 100%;
+			}
+			th,
+			td {
+				border: 1px solid #ccc;
+				padding: 4px 8px;
+				text-align: left;
+				vertical-align: top;
+			}
+			th {
+				background: #f0f0f0;
+			}
+			td.time {
+				white-space: nowrap;
+				width: 1%;
+			}
+			progress {
+				width: 100%;
+			}
+			.stage-list {
+				list-style: none;
+				padding: 0;
+			}
+			.stage-list li {
+				padding: 2px 0;
+			}
 		</style>
 	</head>
 	<body>
-		<h1>오디오 추출 검증</h1>
-		<p>mp4나 mov 파일을 고르고 추출을 실행한다. 결과는 16kHz 모노 PCM이다.</p>
+		<h1>파이프라인 검증</h1>
+		<p>
+			mp4나 mov 파일을 고른다. 추출만 실행하면 16kHz 모노 PCM을 들어 볼 수 있고 변환까지 실행하면 문장 목록이 나온다.
+		</p>
 
 		<p>
 			<input type="file" id="video-file" accept=".mp4,.mov,video/mp4,video/quicktime" />
-			<button type="button" id="extract-button" disabled>추출 실행</button>
+			<button type="button" id="extract-button" disabled>추출만 실행</button>
+			<button type="button" id="transcribe-button" disabled>변환 실행</button>
 		</p>
 
 		<p id="status-text">파일을 고르세요</p>
 
-		<dl id="result-list"></dl>
+		<h2>모델 캐시</h2>
+		<p>
+			<span id="cache-text">확인하지 않았습니다</span>
+			<button type="button" id="cache-button">캐시 다시 확인</button>
+		</p>
 
-		<h2>추출한 음성</h2>
+		<h2>진행</h2>
+		<ul class="stage-list" id="stage-list"></ul>
+		<progress id="stage-progress" max="100" value="0"></progress>
+
+		<h2>추출 결과</h2>
+		<dl id="result-list"></dl>
 		<audio id="pcm-player" controls></audio>
+
+		<h2>문장 목록</h2>
+		<p id="segment-summary">아직 변환하지 않았습니다</p>
+		<table id="segment-table" hidden>
+			<thead>
+				<tr>
+					<th>번호</th>
+					<th>시작</th>
+					<th>끝</th>
+					<th>문장</th>
+				</tr>
+			</thead>
+			<tbody id="segment-body"></tbody>
+		</table>
 
 		<script type="module" src="/src/dev/main.ts"></script>
 	</body>
