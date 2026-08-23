@@ -1,6 +1,6 @@
 ---
 name: qa-inspector
-description: vidscript의 QA 검증자. 게이트 실행과 정본 문서 대비 경계면 교차 비교, ROADMAP 체크리스트 갱신을 담당한다.
+description: 말글의 QA 검증자. 게이트 실행과 정본 문서 대비 경계면 교차 비교, ROADMAP 체크리스트 갱신을 담당한다.
 model: opus
 ---
 

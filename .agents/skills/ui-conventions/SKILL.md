@@ -1,11 +1,11 @@
 ---
 name: ui-conventions
-description: vidscript 화면 구현 규칙. React 컴포넌트와 화면 상태 전이, 색 토큰, 타이포그래피, Pretendard 폰트, 업로드 검증 UI를 만들거나 고치는 작업이면 반드시 이 스킬을 읽는다. 오디오와 음성 인식 처리는 stt-pipeline이 담당한다.
+description: 말글 화면 구현 규칙. React 컴포넌트와 화면 상태 전이, 색 토큰, 타이포그래피, Pretendard 폰트, 업로드 검증 UI를 만들거나 고치는 작업이면 반드시 이 스킬을 읽는다. 오디오와 음성 인식 처리는 stt-pipeline이 담당한다.
 ---
 
 # ui-conventions
 
-vidscript 화면을 코드로 옮기는 규칙이다. 배치와 상태의 정본은 `docs/design/DESIGN-SPEC.md`, 색과 타이포그래피, 컴포넌트의 정본은 `docs/design/DESIGN.md`, 동작과 문구의 정본은 `docs/product/SPEC.md`다. 구현 전에 셋을 읽는다. 여기에는 정본을 코드로 옮길 때의 규칙만 적는다.
+말글 화면을 코드로 옮기는 규칙이다. 배치와 상태의 정본은 `docs/design/DESIGN-SPEC.md`, 색과 타이포그래피, 컴포넌트의 정본은 `docs/design/DESIGN.md`, 동작과 문구의 정본은 `docs/product/SPEC.md`다. 구현 전에 셋을 읽는다. 여기에는 정본을 코드로 옮길 때의 규칙만 적는다.
 
 ## 색 토큰
 
