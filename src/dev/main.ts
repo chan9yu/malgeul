@@ -21,7 +21,7 @@ const FAILURE_TEXT: Record<PipelineFailure, string> = {
 	DECODE: '오디오 트랙이 없거나 브라우저가 해독하지 못하는 파일입니다',
 	EMPTY_AUDIO: '오디오 트랙을 해독했으나 길이가 0입니다',
 	RESAMPLE: '16kHz 모노로 렌더링하지 못했습니다',
-	MODEL_DOWNLOAD: '음성 인식 모델을 준비하지 못했습니다',
+	MODEL_PREPARE: '음성 인식 모델을 준비하지 못했습니다',
 	TRANSCRIBE: '음성을 텍스트로 바꾸지 못했습니다',
 	UNKNOWN: '어느 단계인지 가려낼 수 없는 오류입니다'
 };

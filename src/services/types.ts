@@ -7,7 +7,7 @@ export type AudioExtractionFailure =
 
 /** 화면 문구는 이 코드로 고른다. TranscriptionError의 message는 개발자용이라 그대로 보여주지 않는다 */
 export type TranscriptionFailure =
-	| 'MODEL_DOWNLOAD' // 모델 파일을 내려받거나 WebGPU 세션을 만들지 못했다
+	| 'MODEL_PREPARE' // 모델 파일을 내려받거나 WebGPU 세션을 만들지 못했다
 	| 'TRANSCRIBE' // 음성 인식이 실패했다
 	| 'UNKNOWN'; // 어느 단계에서 났는지 가려낼 수 없는 예외다
 

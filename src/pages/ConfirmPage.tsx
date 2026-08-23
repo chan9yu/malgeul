@@ -1,6 +1,7 @@
 import { Button } from '../components/Button';
 import { Callout } from '../components/Callout';
 import { CenterColumn } from '../components/CenterColumn';
+import { ConversionHeading } from '../components/ConversionHeading';
 import { formatFileSize } from '../utils/file-size';
 import { formatTimecode } from '../utils/timecode';
 import type { AcceptedFile } from '../utils/upload.validation';
@@ -15,7 +16,7 @@ interface ConfirmPageProps {
 export function ConfirmPage({ accepted, modelCached, onStart, onPickAnother }: ConfirmPageProps) {
 	return (
 		<CenterColumn>
-			<h1 className="text-title">영상을 텍스트로</h1>
+			<ConversionHeading />
 
 			<div className="flex flex-col gap-1 rounded-box border border-border bg-surface px-3 py-2">
 				<p className="text-body">{accepted.file.name}</p>

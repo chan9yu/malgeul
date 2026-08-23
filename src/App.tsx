@@ -57,9 +57,11 @@ export function App() {
 		});
 	};
 
+	/** 변환이 끝난 것은 모델이 저장됐다는 뜻이다. 업로드로 돌아갔을 때 첫 사용 안내문이 잠깐 남지 않게 미리 적어 둔다 */
 	const runConversion = async (file: File) => {
 		try {
 			const transcript = await transcribeVideo(file, setProgress);
+			setModelCached(true);
 			dispatch({ type: 'CONVERSION_SUCCEEDED', transcript });
 		} catch (cause) {
 			dispatch({ type: 'CONVERSION_FAILED', failure: toFailureCode(cause) });

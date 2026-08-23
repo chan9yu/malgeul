@@ -90,7 +90,7 @@ async function loadModel(worker: Worker, onProgress?: ProgressListener) {
 	await runWorkerStage({
 		worker,
 		request: { type: 'load' },
-		crashFailure: 'MODEL_DOWNLOAD',
+		crashFailure: 'MODEL_PREPARE',
 		doneType: 'model-ready',
 		onUpdate: (response) => {
 			if (response.type !== 'model-bytes') {

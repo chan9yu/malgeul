@@ -120,7 +120,7 @@ async function handleRequest(request: WorkerRequest) {
 
 		await runTranscription(request.pcm, request.sampleRate);
 	} catch (cause) {
-		const failure = request.type === 'load' ? 'MODEL_DOWNLOAD' : 'TRANSCRIBE';
+		const failure = request.type === 'load' ? 'MODEL_PREPARE' : 'TRANSCRIBE';
 		post({ type: 'failed', failure, message: describeCause(cause) });
 	}
 }
