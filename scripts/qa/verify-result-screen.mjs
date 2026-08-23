@@ -11,8 +11,11 @@ import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { readBase } from './base-url.mjs';
+
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const HARNESS = '/scripts/qa/result-harness/index.html';
+const HARNESS = 'scripts/qa/result-harness/index.html';
+const BASE = await readBase();
 const RETRY_DELAY_MS = 250;
 const CONNECT_RETRY_LIMIT = 40;
 const SERVER_RETRY_LIMIT = 80;
@@ -42,7 +45,7 @@ function findFreePort() {
 async function waitForServer(port) {
 	for (let attempt = 0; attempt < SERVER_RETRY_LIMIT; attempt += 1) {
 		try {
-			const response = await fetch(`http://localhost:${port}${HARNESS}`);
+			const response = await fetch(`http://localhost:${port}${BASE}${HARNESS}`);
 			if (response.ok) return;
 		} catch {
 			// 아직 뜨지 않았다
@@ -142,7 +145,7 @@ try {
 	};
 
 	const open = async (query) => {
-		await send('Page.navigate', { url: `http://localhost:${port}${HARNESS}${query}` }, sessionId);
+		await send('Page.navigate', { url: `http://localhost:${port}${BASE}${HARNESS}${query}` }, sessionId);
 		for (let attempt = 0; attempt < CONNECT_RETRY_LIMIT; attempt += 1) {
 			await wait(RETRY_DELAY_MS);
 			const ready = await evaluate("!!document.querySelector('video') && !!window.qaFixture");

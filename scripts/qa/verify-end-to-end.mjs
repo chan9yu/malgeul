@@ -11,6 +11,8 @@ import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
+import { readBase } from './base-url.mjs';
+
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const DIST_DIR = 'dist';
 const FIXTURE_DIR = resolve('_workspace/fixtures');
@@ -43,6 +45,7 @@ function findFreePort() {
 }
 
 const PREVIEW_PORT = await findFreePort();
+const BASE = await readBase();
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -80,7 +83,7 @@ async function findWorkerAsset() {
 async function waitForPreview() {
 	for (let attempt = 0; attempt < PREVIEW_RETRY_LIMIT; attempt += 1) {
 		try {
-			const response = await fetch(`http://localhost:${PREVIEW_PORT}/`);
+			const response = await fetch(`http://localhost:${PREVIEW_PORT}${BASE}`);
 			if (response.ok) return;
 		} catch {
 			// 아직 뜨지 않았다
@@ -128,7 +131,7 @@ function buildTimestampProbe(workerAsset) {
 	return `(async () => {
 		let decoded = null;
 		try {
-			const bytes = await (await fetch('/${SERVED_FIXTURE}')).arrayBuffer();
+			const bytes = await (await fetch('${BASE}${SERVED_FIXTURE}')).arrayBuffer();
 			decoded = await new OfflineAudioContext(1, 1, 16000).decodeAudioData(bytes);
 		} catch (cause) {
 			return { error: '디코딩 실패: ' + (cause && cause.message) };
@@ -140,7 +143,7 @@ function buildTimestampProbe(workerAsset) {
 		source.start();
 		const pcm = (await target.startRendering()).getChannelData(0);
 
-		const worker = new Worker('/assets/${workerAsset}', { type: 'module' });
+		const worker = new Worker('${BASE}assets/${workerAsset}', { type: 'module' });
 		const settled = new Promise((resolve, reject) => {
 			worker.addEventListener('message', (event) => {
 				if (event.data.type === 'transcribe-done') resolve(event.data.segments);
@@ -222,7 +225,7 @@ try {
 		return out.result?.result?.value;
 	};
 
-	await send('Page.navigate', { url: `http://localhost:${PREVIEW_PORT}/` }, sessionId);
+	await send('Page.navigate', { url: `http://localhost:${PREVIEW_PORT}${BASE}` }, sessionId);
 	await wait(2000);
 
 	const adapter = await evaluate('(async () => !!(await navigator.gpu?.requestAdapter()))()');
@@ -236,7 +239,7 @@ try {
 	const timestamps = await evaluate(buildTimestampProbe(workerAsset));
 
 	for (const testCase of CASES) {
-		await send('Page.navigate', { url: `http://localhost:${PREVIEW_PORT}/` }, sessionId);
+		await send('Page.navigate', { url: `http://localhost:${PREVIEW_PORT}${BASE}` }, sessionId);
 		await wait(1500);
 
 		const handle = await send(
