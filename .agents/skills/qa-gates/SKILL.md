@@ -44,13 +44,30 @@ pnpm format:check
 
 ## 검증 스크립트
 
-눈으로 훑지 말고 실행해 비교한다. 생성기 검증은 이런 식이다.
+눈으로 훑지 말고 실행해 비교한다. `scripts/qa/`에 있고 전부 `node`로 돌린다.
+
+Chrome이 필요 없어 빠른 것부터 본다.
 
 ```bash
-pnpm exec tsx scripts/qa/verify-exporters.ts
+node scripts/qa/verify-exporters.mjs       # SPEC 출력 예시와 생성기 출력 대조
+node scripts/qa/verify-docs-strings.mjs    # 정본 문구와 코드 문자열 대조
+node scripts/qa/verify-screen-contents.mjs # 화면이 실제로 닿는 문구 대조
+```
+
+실제 Chrome을 띄우는 것들이다. `pnpm build` 뒤에 돌린다.
+
+```bash
+node scripts/qa/verify-result-screen.mjs   # 결과 화면. 모델을 받지 않아 빠르다
+node scripts/qa/verify-end-to-end.mjs      # mp4와 mov 종단. 모델 566MB를 받아 10분 넘는다
+node scripts/qa/capture-requests.mjs       # 외부 요청 수집. 마찬가지로 오래 걸린다
+node scripts/qa/measure-audio.mjs <파일>   # 추출한 PCM을 숫자로 잰다
 ```
 
 스크립트가 없으면 만들어 `scripts/qa/`에 둔다. 같은 검증을 반복하게 되므로 일회용으로 버리지 않는다.
+
+**만든 검사가 실제로 잡는지 먼저 확인한다.** 일부러 깨뜨려 실패가 나는 것을 보고 되돌린다. 통과만 보고 끝내면 그 통과가 진짜인지 알 수 없다.
+
+**게이트에 걸리는 자리에 둔다.** 어느 게이트도 부르지 않는 검사는 한 번도 돌지 않는다. 순수 함수 검사는 `src/**/*.test.ts`로 두어 `pnpm test`가 수집하게 하고, 브라우저가 필요한 것만 `scripts/qa/`에 둔다. 만든 뒤 `pnpm exec vitest list`로 실제 수집되는지 본다.
 
 ## ROADMAP 체크리스트 갱신
 
