@@ -75,7 +75,7 @@ function createClient(socket) {
 // 평균 다운믹스가 맞으면 측정값이 평균 RMS 에 붙고, 좌채널만 쓰면 좌채널 RMS 에 붙는다.
 function buildProbeExpression(name, mime) {
 	return `(async () => {
-		const { extractAudio } = await import('/src/pipeline/audio.extractor.ts');
+		const { extractAudio } = await import('/src/services/audio.extractor.ts');
 		const rms = (samples) => {
 			let total = 0;
 			for (let index = 0; index < samples.length; index += 1) {
