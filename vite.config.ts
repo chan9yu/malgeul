@@ -4,7 +4,7 @@ import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-	base: '/vidscript/',
+	base: '/malgeul/',
 	plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss()],
 	server: {
 		port: 3600

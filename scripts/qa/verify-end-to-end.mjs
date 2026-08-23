@@ -181,7 +181,7 @@ function buildTimestampProbe(workerAsset) {
 const workerAsset = await findWorkerAsset();
 await copyFile(join(FIXTURE_DIR, TIMESTAMP_FIXTURE), join(DIST_DIR, SERVED_FIXTURE));
 
-const profileDir = await mkdtemp(join(tmpdir(), 'vidscript-e2e-'));
+const profileDir = await mkdtemp(join(tmpdir(), 'malgeul-e2e-'));
 const preview = spawn('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], { stdio: 'ignore' });
 const chrome = spawn(
 	CHROME,

@@ -148,7 +148,7 @@ function buildProbeExpression(name, mime) {
 	})()`;
 }
 
-const profileDir = await mkdtemp(join(tmpdir(), 'vidscript-qa-'));
+const profileDir = await mkdtemp(join(tmpdir(), 'malgeul-qa-'));
 const chrome = spawn(
 	CHROME,
 	[

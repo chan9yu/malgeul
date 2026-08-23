@@ -1,4 +1,4 @@
-const REPOSITORY_URL = 'https://github.com/chan9yu/vidscript';
+const REPOSITORY_URL = 'https://github.com/chan9yu/malgeul';
 
 export function Footer() {
 	return (

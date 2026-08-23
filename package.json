@@ -1,13 +1,13 @@
 {
 	"$schema": "https://json.schemastore.org/package.json",
-	"name": "vidscript",
+	"name": "malgeul",
 	"description": "영상 속 한국어 대화를 브라우저 안에서 텍스트로 바꿔 주는 웹사이트",
 	"version": "1.0.0",
 	"private": true,
 	"type": "module",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/chan9yu/vidscript"
+		"url": "https://github.com/chan9yu/malgeul"
 	},
 	"license": "MIT",
 	"author": "chan9yu <dev.cgyeo@gmail.com>",

@@ -142,7 +142,7 @@ const workerAsset = await findWorkerAsset();
 await writeHarness(workerAsset);
 
 const preview = spawn('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], { stdio: 'ignore' });
-const profileDir = await mkdtemp(join(tmpdir(), 'vidscript-net-'));
+const profileDir = await mkdtemp(join(tmpdir(), 'malgeul-net-'));
 const chrome = spawn(
 	CHROME,
 	[

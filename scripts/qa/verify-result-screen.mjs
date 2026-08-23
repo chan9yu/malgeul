@@ -91,8 +91,8 @@ const results = [];
 const check = (group, label, ok, detail = '') => results.push({ group, label, ok, detail });
 
 const port = await findFreePort();
-const profileDir = await mkdtemp(join(tmpdir(), 'vidscript-result-'));
-const downloadDir = await mkdtemp(join(tmpdir(), 'vidscript-dl-'));
+const profileDir = await mkdtemp(join(tmpdir(), 'malgeul-result-'));
+const downloadDir = await mkdtemp(join(tmpdir(), 'malgeul-dl-'));
 const server = spawn('npx', ['vite', '--port', String(port), '--strictPort'], { stdio: 'ignore' });
 const chrome = spawn(
 	CHROME,

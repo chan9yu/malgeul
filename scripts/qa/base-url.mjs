@@ -1,4 +1,4 @@
-// vite.config.ts 의 base 를 읽는다. 스크립트마다 '/vidscript/' 를 박으면 base 를 바꿀 때
+// vite.config.ts 의 base 를 읽는다. 스크립트마다 '/malgeul/' 를 박으면 base 를 바꿀 때
 // 네 곳이 조용히 어긋난다. 배포 산출물의 index.html 이 실제로 쓰인 base 를 담고 있으므로
 // 거기서 뽑는다. dist 가 없으면 소스에서 읽는다.
 
