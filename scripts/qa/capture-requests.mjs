@@ -6,51 +6,22 @@
 // 미리보기 서버는 이 스크립트가 직접 띄우고 내린다.
 
 import { spawn } from 'node:child_process';
-import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { createServer } from 'node:net';
-import { tmpdir } from 'node:os';
+import { rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { readBase } from './base-url.mjs';
+import { findFreePort, findWorkerAsset, launchChrome, wait, waitForUrl } from './chrome.mjs';
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const DIST_DIR = 'dist';
 const HARNESS_NAME = 'qa-harness.html';
-const CONNECT_RETRY_LIMIT = 40;
-const CONNECT_RETRY_DELAY_MS = 250;
-const PREVIEW_RETRY_LIMIT = 60;
 const CAPTURE_LIMIT_MS = 300_000;
 const POLL_MS = 2000;
 // qa-gates 스킬의 허용 목록과 같아야 한다. 추측으로 넓히면 hf 가 다른 CDN 으로 옮겼을 때 조용히 통과한다
 const ALLOWED_EXTERNAL_HOSTS = ['huggingface.co', 'us.aws.cdn.hf.co'];
 
-// qa-inspector 가 같은 저장소에서 동시에 돌릴 수 있다. 포트를 고정하면 둘이 같은 서버를 보고
-// 서로의 결과를 자기 것으로 읽는다. 매번 비어 있는 포트를 받아 쓴다.
-function findFreePort() {
-	return new Promise((res, rej) => {
-		const probe = createServer();
-		probe.on('error', rej);
-		probe.listen(0, () => {
-			const { port } = probe.address();
-			probe.close(() => res(port));
-		});
-	});
-}
-
 const PREVIEW_PORT = await findFreePort();
 const BASE = await readBase();
-
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-async function findWorkerAsset() {
-	const files = await readdir(join(DIST_DIR, 'assets'));
-	const worker = files.find((name) => name.startsWith('transcribe.worker-') && name.endsWith('.js'));
-	if (!worker) {
-		throw new Error('빌드 산출물에서 워커 파일을 찾지 못했다. pnpm build 를 먼저 돌려라');
-	}
-
-	return worker;
-}
+const HARNESS_URL = `http://localhost:${PREVIEW_PORT}${BASE}${HARNESS_NAME}`;
 
 // 워커를 공개 메시지 규약대로 직접 깨워 모델 로드를 시작시킨다.
 // 모델을 다 받을 필요는 없다. 세션을 만드는 순간 onnxruntime 이 wasm 을 가져가므로 그 요청만 보면 된다.
@@ -79,98 +50,21 @@ async function writeHarness(workerAsset) {
 	await writeFile(join(DIST_DIR, HARNESS_NAME), html);
 }
 
-async function waitForPreview() {
-	for (let attempt = 0; attempt < PREVIEW_RETRY_LIMIT; attempt += 1) {
-		try {
-			const response = await fetch(`http://localhost:${PREVIEW_PORT}${BASE}${HARNESS_NAME}`);
-			if (response.ok) {
-				return;
-			}
-		} catch {
-			// 아직 뜨지 않았다
-		}
-		await wait(CONNECT_RETRY_DELAY_MS);
-	}
-
-	throw new Error('미리보기 서버가 뜨지 않았다');
-}
-
-async function waitForDebugger(profileDir) {
-	for (let attempt = 0; attempt < CONNECT_RETRY_LIMIT; attempt += 1) {
-		try {
-			const [port] = (await readFile(join(profileDir, 'DevToolsActivePort'), 'utf8')).split('\n');
-			const response = await fetch(`http://127.0.0.1:${port.trim()}/json/version`);
-			return await response.json();
-		} catch {
-			await wait(CONNECT_RETRY_DELAY_MS);
-		}
-	}
-
-	throw new Error('Chrome 디버깅 포트에 붙지 못했다');
-}
-
-function createClient(socket, onEvent) {
-	const pending = new Map();
-	let lastId = 0;
-
-	socket.addEventListener('message', (event) => {
-		const message = JSON.parse(event.data);
-		if (message.method) {
-			onEvent(message);
-			return;
-		}
-
-		const resolve = pending.get(message.id);
-		if (resolve) {
-			pending.delete(message.id);
-			resolve(message);
-		}
-	});
-
-	return (method, params = {}, sessionId) => {
-		lastId += 1;
-		const id = lastId;
-
-		return new Promise((resolve) => {
-			pending.set(id, resolve);
-			socket.send(JSON.stringify({ id, method, params, sessionId }));
-		});
-	};
-}
-
-const workerAsset = await findWorkerAsset();
+const workerAsset = await findWorkerAsset(DIST_DIR);
 await writeHarness(workerAsset);
 
 const preview = spawn('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], { stdio: 'ignore' });
-const profileDir = await mkdtemp(join(tmpdir(), 'malgeul-net-'));
-const chrome = spawn(
-	CHROME,
-	[
-		'--headless=new',
-		'--remote-debugging-port=0',
-		`--user-data-dir=${profileDir}`,
-		'--no-first-run',
-		'--no-default-browser-check'
-	],
-	{ stdio: 'ignore' }
-);
+const chrome = await launchChrome({ profilePrefix: 'malgeul-net-' });
 
 const requests = [];
+const attachedSessions = [];
 
 try {
-	await waitForPreview();
-	const version = await waitForDebugger(profileDir);
-	const socket = new WebSocket(version.webSocketDebuggerUrl);
-	await new Promise((resolve, reject) => {
-		socket.addEventListener('open', resolve, { once: true });
-		socket.addEventListener('error', reject, { once: true });
-	});
+	await waitForUrl(HARNESS_URL);
 
 	// 워커는 페이지와 다른 대상이라 페이지 세션의 Network 로는 워커의 요청이 잡히지 않는다.
 	// 새 대상이 붙을 때마다 그 세션에서 Network 를 따로 켜야 한다.
-	let send;
-	const attachedSessions = [];
-	send = createClient(socket, (message) => {
+	const onEvent = (message, send) => {
 		if (message.method === 'Network.requestWillBeSent') {
 			requests.push(message.params.request.url);
 			return;
@@ -183,16 +77,14 @@ try {
 			void send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: false, flatten: true }, child);
 			void send('Runtime.runIfWaitingForDebugger', {}, child);
 		}
-	});
+	};
 
-	const target = await send('Target.createTarget', { url: 'about:blank' });
-	const attached = await send('Target.attachToTarget', { targetId: target.result.targetId, flatten: true });
-	const sessionId = attached.result.sessionId;
+	const { send, sessionId } = await chrome.attach(onEvent);
 
 	await send('Network.enable', {}, sessionId);
 	await send('Page.enable', {}, sessionId);
 	await send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: false, flatten: true }, sessionId);
-	await send('Page.navigate', { url: `http://localhost:${PREVIEW_PORT}${BASE}${HARNESS_NAME}` }, sessionId);
+	await send('Page.navigate', { url: HARNESS_URL }, sessionId);
 
 	const deadline = Date.now() + CAPTURE_LIMIT_MS;
 	let done = null;
@@ -247,8 +139,7 @@ try {
 	console.log(`\n허용 안 된 호스트: ${disallowed.length ? disallowed.join(', ') : '없음'}`);
 	console.log(jsdelivr.length === 0 && disallowed.length === 0 ? '\n판정: 통과' : '\n판정: 실패');
 } finally {
-	chrome.kill();
+	await chrome.close();
 	preview.kill();
-	await rm(profileDir, { recursive: true, force: true, maxRetries: 3 }).catch(() => {});
 	await rm(join(DIST_DIR, HARNESS_NAME), { force: true });
 }

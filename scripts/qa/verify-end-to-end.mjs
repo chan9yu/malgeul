@@ -6,21 +6,16 @@
 // 미리보기 서버는 이 스크립트가 직접 띄우고 내린다. 개발 서버로는 배포물을 확인할 수 없다.
 
 import { spawn } from 'node:child_process';
-import { copyFile, mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
-import { createServer } from 'node:net';
-import { tmpdir } from 'node:os';
+import { copyFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
 import { readBase } from './base-url.mjs';
+import { findFreePort, findWorkerAsset, launchChrome, wait, waitForUrl, WEBGPU_FLAG } from './chrome.mjs';
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const DIST_DIR = 'dist';
 const FIXTURE_DIR = resolve('_workspace/fixtures');
 const SERVED_FIXTURE = 'qa-fixture.mp4';
 const TIMESTAMP_FIXTURE = 'korean-short.mp4';
-const CONNECT_RETRY_LIMIT = 40;
-const RETRY_DELAY_MS = 250;
-const PREVIEW_RETRY_LIMIT = 60;
 const STEP_TIMEOUT_MS = 420_000;
 const POLL_MS = 1500;
 
@@ -31,23 +26,9 @@ const CASES = [
 	{ file: 'no-audio.mp4', expect: 'failure', label: '오디오 없는 mp4', message: '이 파일에서 음성을 찾지 못했습니다' }
 ];
 
-// qa-inspector 가 같은 저장소에서 동시에 돌릴 수 있다. 포트를 고정하면 둘이 같은 서버를 보고
-// 서로의 결과를 자기 것으로 읽는다. 매번 비어 있는 포트를 받아 쓴다.
-function findFreePort() {
-	return new Promise((res, rej) => {
-		const probe = createServer();
-		probe.on('error', rej);
-		probe.listen(0, () => {
-			const { port } = probe.address();
-			probe.close(() => res(port));
-		});
-	});
-}
-
 const PREVIEW_PORT = await findFreePort();
 const BASE = await readBase();
-
-const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const PREVIEW_URL = `http://localhost:${PREVIEW_PORT}${BASE}`;
 
 // "다른 파일 선택" 은 실패 안내 화면과 변환 확인 화면 양쪽에 있다. 그것만 보면 변환 시작이 먹지 않아
 // 확인 화면에 머문 것도 실패로 찍혀 원인이 다른 두 상태가 같은 이름으로 보고된다.
@@ -68,61 +49,6 @@ function readScreen(text) {
 	}
 
 	return 'progress';
-}
-
-async function findWorkerAsset() {
-	const files = await readdir(join(DIST_DIR, 'assets'));
-	const worker = files.find((name) => name.startsWith('transcribe.worker-') && name.endsWith('.js'));
-	if (!worker) {
-		throw new Error('빌드 산출물에서 워커 파일을 찾지 못했다. pnpm build 를 먼저 돌려라');
-	}
-
-	return worker;
-}
-
-async function waitForPreview() {
-	for (let attempt = 0; attempt < PREVIEW_RETRY_LIMIT; attempt += 1) {
-		try {
-			const response = await fetch(`http://localhost:${PREVIEW_PORT}${BASE}`);
-			if (response.ok) return;
-		} catch {
-			// 아직 뜨지 않았다
-		}
-		await wait(RETRY_DELAY_MS);
-	}
-	throw new Error('미리보기 서버가 뜨지 않았다');
-}
-
-async function waitForDebugger(profileDir) {
-	for (let attempt = 0; attempt < CONNECT_RETRY_LIMIT; attempt += 1) {
-		try {
-			const [port] = (await readFile(join(profileDir, 'DevToolsActivePort'), 'utf8')).split('\n');
-			const response = await fetch(`http://127.0.0.1:${port.trim()}/json/version`);
-			return await response.json();
-		} catch {
-			await wait(RETRY_DELAY_MS);
-		}
-	}
-	throw new Error('Chrome 디버깅 포트에 붙지 못했다');
-}
-
-function createClient(socket) {
-	const pending = new Map();
-	let lastId = 0;
-	socket.addEventListener('message', (event) => {
-		const message = JSON.parse(event.data);
-		const settle = pending.get(message.id);
-		if (settle) {
-			pending.delete(message.id);
-			settle(message);
-		}
-	});
-	return (method, params = {}, sessionId) =>
-		new Promise((res) => {
-			lastId += 1;
-			pending.set(lastId, res);
-			socket.send(JSON.stringify({ id: lastId, method, params, sessionId }));
-		});
 }
 
 // 화면의 목록은 시각을 mm:ss 까지만 적어 밀리초와 끝 시각이 보이지 않는다.
@@ -178,39 +104,17 @@ function buildTimestampProbe(workerAsset) {
 	})()`;
 }
 
-const workerAsset = await findWorkerAsset();
+const workerAsset = await findWorkerAsset(DIST_DIR);
 await copyFile(join(FIXTURE_DIR, TIMESTAMP_FIXTURE), join(DIST_DIR, SERVED_FIXTURE));
 
-const profileDir = await mkdtemp(join(tmpdir(), 'malgeul-e2e-'));
 const preview = spawn('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], { stdio: 'ignore' });
-const chrome = spawn(
-	CHROME,
-	[
-		'--headless=new',
-		'--remote-debugging-port=0',
-		`--user-data-dir=${profileDir}`,
-		'--no-first-run',
-		'--no-default-browser-check',
-		'--enable-unsafe-webgpu'
-	],
-	{ stdio: 'ignore' }
-);
+const chrome = await launchChrome({ profilePrefix: 'malgeul-e2e-', flags: [WEBGPU_FLAG] });
 
 const results = [];
 
 try {
-	await waitForPreview();
-	const version = await waitForDebugger(profileDir);
-	const socket = new WebSocket(version.webSocketDebuggerUrl);
-	await new Promise((res, rej) => {
-		socket.addEventListener('open', res, { once: true });
-		socket.addEventListener('error', rej, { once: true });
-	});
-
-	const send = createClient(socket);
-	const target = await send('Target.createTarget', { url: 'about:blank' });
-	const attached = await send('Target.attachToTarget', { targetId: target.result.targetId, flatten: true });
-	const sessionId = attached.result.sessionId;
+	await waitForUrl(PREVIEW_URL);
+	const { send, sessionId } = await chrome.attach();
 
 	await send('Page.enable', {}, sessionId);
 	await send('DOM.enable', {}, sessionId);
@@ -225,7 +129,7 @@ try {
 		return out.result?.result?.value;
 	};
 
-	await send('Page.navigate', { url: `http://localhost:${PREVIEW_PORT}${BASE}` }, sessionId);
+	await send('Page.navigate', { url: PREVIEW_URL }, sessionId);
 	await wait(2000);
 
 	const adapter = await evaluate('(async () => !!(await navigator.gpu?.requestAdapter()))()');
@@ -239,7 +143,7 @@ try {
 	const timestamps = await evaluate(buildTimestampProbe(workerAsset));
 
 	for (const testCase of CASES) {
-		await send('Page.navigate', { url: `http://localhost:${PREVIEW_PORT}${BASE}` }, sessionId);
+		await send('Page.navigate', { url: PREVIEW_URL }, sessionId);
 		await wait(1500);
 
 		const handle = await send(
@@ -320,8 +224,7 @@ try {
 
 	console.log(`\n판정: ${allPassed && timestampsOk ? '통과' : '실패'}`);
 } finally {
-	chrome.kill();
+	await chrome.close();
 	preview.kill();
-	await rm(profileDir, { recursive: true, force: true, maxRetries: 3 }).catch(() => {});
 	await rm(join(DIST_DIR, SERVED_FIXTURE), { force: true });
 }

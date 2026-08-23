@@ -2,21 +2,16 @@
 // 문자열이 저장소에 있는지만 보는 검사는 컴포넌트로 빼는 순간 배치를 보증하지 못한다.
 // 그래서 페이지가 부르는 컴포넌트를 따라 들어가 그 화면이 내놓는 문구를 모은다.
 // DESIGN-SPEC 이 "빠진다" 고 적은 문구가 들어와 있는지도 함께 본다.
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+
+import { createChecklist } from './checklist.mjs';
 
 const read = (p) => readFileSync(p, 'utf8');
 
-function walk(dir, out = []) {
-	for (const entry of readdirSync(dir)) {
-		const full = join(dir, entry);
-		if (statSync(full).isDirectory()) walk(full, out);
-		else out.push(full);
-	}
-	return out;
-}
-
-const sourceFiles = walk('src').filter((f) => /\.tsx?$/.test(f) && !f.endsWith('.test.ts'));
+const sourceFiles = readdirSync('src', { recursive: true })
+	.map((entry) => join('src', entry))
+	.filter((f) => /\.tsx?$/.test(f) && !f.endsWith('.test.ts'));
 const textOf = new Map(sourceFiles.map((f) => [resolve(f), read(f)]));
 
 // 이 파일이 부르는 지역 컴포넌트의 파일 경로를 돌려준다.
@@ -57,10 +52,6 @@ function reachableFrom(entry) {
 	}
 
 	return seen;
-}
-
-function screenText(entry) {
-	return [...reachableFrom(entry)].map((f) => textOf.get(f) ?? '').join('\n');
 }
 
 // DESIGN-SPEC 이 각 화면에 놓으라고 적은 문구와 빼라고 적은 문구
@@ -136,22 +127,19 @@ const SCREENS = [
 	}
 ];
 
-let failed = 0;
+const { check, report } = createChecklist();
+
 for (const screen of SCREENS) {
-	const text = screenText(screen.entry);
-	console.log(`\n[${screen.name}]  닿는 파일 ${reachableFrom(screen.entry).size}개`);
+	const reachable = reachableFrom(screen.entry);
+	const text = [...reachable].map((f) => textOf.get(f) ?? '').join('\n');
+	const group = `${screen.name}  닿는 파일 ${reachable.size}개`;
 
 	for (const phrase of screen.must) {
-		const ok = text.includes(phrase);
-		if (!ok) failed += 1;
-		console.log(`  ${ok ? '통과' : '실패'}  놓인다: ${phrase}`);
+		check(group, `놓인다: ${phrase}`, text.includes(phrase));
 	}
 	for (const phrase of screen.mustNot) {
-		const ok = !text.includes(phrase);
-		if (!ok) failed += 1;
-		console.log(`  ${ok ? '통과' : '실패'}  빠진다: ${phrase}`);
+		check(group, `빠진다: ${phrase}`, !text.includes(phrase));
 	}
 }
 
-console.log(`\n실패 ${failed}건`);
-process.exit(failed > 0 ? 1 : 0);
+process.exit(report() > 0 ? 1 : 0);
