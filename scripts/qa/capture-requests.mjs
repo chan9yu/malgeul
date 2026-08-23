@@ -7,6 +7,7 @@
 
 import { spawn } from 'node:child_process';
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -18,9 +19,8 @@ const CONNECT_RETRY_DELAY_MS = 250;
 const PREVIEW_RETRY_LIMIT = 60;
 const CAPTURE_LIMIT_MS = 300_000;
 const POLL_MS = 2000;
-const ALLOWED_EXTERNAL_HOSTS = ['huggingface.co', 'cdn-lfs.huggingface.co', 'cdn-lfs-us-1.hf.co', 'us.aws.cdn.hf.co'];
-
-import { createServer } from 'node:net';
+// qa-gates 스킬의 허용 목록과 같아야 한다. 추측으로 넓히면 hf 가 다른 CDN 으로 옮겼을 때 조용히 통과한다
+const ALLOWED_EXTERNAL_HOSTS = ['huggingface.co', 'us.aws.cdn.hf.co'];
 
 // qa-inspector 가 같은 저장소에서 동시에 돌릴 수 있다. 포트를 고정하면 둘이 같은 서버를 보고
 // 서로의 결과를 자기 것으로 읽는다. 매번 비어 있는 포트를 받아 쓴다.

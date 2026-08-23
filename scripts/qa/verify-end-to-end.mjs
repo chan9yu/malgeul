@@ -7,6 +7,7 @@
 
 import { spawn } from 'node:child_process';
 import { copyFile, mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -28,8 +29,6 @@ const CASES = [
 	{ file: 'no-audio.mp4', expect: 'failure', label: '오디오 없는 mp4', message: '이 파일에서 음성을 찾지 못했습니다' }
 ];
 
-import { createServer } from 'node:net';
-
 // qa-inspector 가 같은 저장소에서 동시에 돌릴 수 있다. 포트를 고정하면 둘이 같은 서버를 보고
 // 서로의 결과를 자기 것으로 읽는다. 매번 비어 있는 포트를 받아 쓴다.
 function findFreePort() {
@@ -46,6 +45,25 @@ function findFreePort() {
 const PREVIEW_PORT = await findFreePort();
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// "다른 파일 선택" 은 실패 안내 화면과 변환 확인 화면 양쪽에 있다. 그것만 보면 변환 시작이 먹지 않아
+// 확인 화면에 머문 것도 실패로 찍혀 원인이 다른 두 상태가 같은 이름으로 보고된다.
+// 확인 화면에만 있는 "변환 시작" 을 함께 봐서 가른다.
+function readScreen(text) {
+	if (text.includes('변환된 문장')) {
+		return 'result';
+	}
+
+	if (text.includes('변환 시작')) {
+		return 'confirm';
+	}
+
+	if (text.includes('다른 파일 선택')) {
+		return 'failure';
+	}
+
+	return 'progress';
+}
 
 async function findWorkerAsset() {
 	const files = await readdir(join(DIST_DIR, 'assets'));
@@ -119,7 +137,7 @@ function buildTimestampProbe(workerAsset) {
 		const settled = new Promise((resolve, reject) => {
 			worker.addEventListener('message', (event) => {
 				if (event.data.type === 'transcribe-done') resolve(event.data.segments);
-				if (event.data.type === 'failed') reject(new Error(event.data.failure));
+				if (event.data.type === 'failed') reject(new Error(event.data.failure + ': ' + event.data.message));
 			});
 			worker.addEventListener('error', (event) => reject(new Error(event.message)));
 		});
@@ -237,21 +255,29 @@ try {
 
 		const deadline = Date.now() + STEP_TIMEOUT_MS;
 		let text = '';
+		let screen = 'progress';
 		while (Date.now() < deadline) {
 			await wait(POLL_MS);
 			text = String(await evaluate('document.body.innerText')).replace(/\s+/g, ' ');
-			if (text.includes('변환된 문장') || text.includes('다른 파일 선택')) break;
+			screen = readScreen(text);
+			// 확인 화면이 남아 있는 것은 클릭이 아직 반영되지 않은 것일 수도 있어 끝까지 기다린다
+			if (screen === 'result' || screen === 'failure') break;
 		}
 
 		results.push({
 			...testCase,
-			outcome: text.includes('변환된 문장') ? 'result' : text.includes('다른 파일 선택') ? 'failure' : 'timeout',
+			outcome:
+				screen === 'confirm' ? '확인 화면에 머무름(변환 시작이 먹지 않음)' : screen === 'progress' ? 'timeout' : screen,
 			segmentCount: Number(/변환된 문장 (\d+)개/.exec(text)?.[1] ?? 0),
 			messageOk: testCase.message ? text.includes(testCase.message) : true,
 			text: text.slice(0, 140)
 		});
 	}
 
+	// 사례를 네 번 돌린 페이지에는 OfflineAudioContext 가 여덟 개 쌓이고 직전 사례는 디코딩 실패까지 겪었다.
+	// 그 상태에서 디코딩하면 멀쩡한 파일도 EncodingError 로 떨어진다. 갓 띄운 페이지에서 잰다.
+	await send('Page.navigate', { url: `http://localhost:${PREVIEW_PORT}/` }, sessionId);
+	await wait(1500);
 	const timestamps = await evaluate(buildTimestampProbe(workerAsset));
 
 	console.log('\n화면 종단 결과');
