@@ -142,6 +142,10 @@ OfflineAudioContext로 영상 파일의 오디오를 디코딩한다. 의존성�
 
 서버가 없는 정적 사이트라 GitHub Pages로 충분하다. GitHub Pages는 응답 헤더를 마음대로 설정할 수 없지만 오디오 추출에 내장 디코더를 쓰는 방식은 COOP와 COEP 헤더가 필요 없어서 문제가 되지 않는다.
 
+저장소 이름이 주소에 붙는 프로젝트 페이지라 `base`를 `/vidscript/`로 잡는다. 이 값은 산출물의 절대 경로 셋을 함께 바꾼다. `index.html`의 favicon과 스크립트, CSS의 `@font-face` url, 워커 안의 wasm 주소다. 셋 다 소스에서는 호스트 루트를 가리키는 문자열이라 `base`를 넣은 뒤 산출물에서 직접 확인한다. 폰트가 404가 나면 폴백 폰트로 그려져 화면이 그럴듯하게 망가지고, wasm이 404가 나면 모델을 다 받은 뒤 세션 생성에서 터진다.
+
+개발 서버와 미리보기도 같은 경로 아래에서 돈다. 임시 개발 페이지 주소가 `/vidscript/dev.html`이 된다.
+
 ### 스택: React 19와 Vite 8, TypeScript 6
 
 Vite 8은 번들러로 Rolldown, CSS 처리로 Lightning CSS를 내장한다. 둘을 따로 붙이지 않는다.
