@@ -11,3 +11,6 @@ pnpm-lock.yaml
 # 기타
 *.min.js
 *.min.css
+
+# 로컬 설정
+.claude/settings.local.json
