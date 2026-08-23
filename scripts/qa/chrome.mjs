@@ -14,8 +14,6 @@ const COMMON_FLAGS = ['--headless=new', '--remote-debugging-port=0', '--no-first
 
 /** 합성 클릭은 사용자 제스처가 아니다. 이 플래그가 없으면 play() 가 막혀 재생 중 판정을 볼 수 없다 */
 export const AUTOPLAY_FLAG = '--autoplay-policy=no-user-gesture-required';
-/** 워커가 webgpu 장치로 세션을 만든다. 헤드리스에서는 이 플래그가 있어야 어댑터가 잡힌다 */
-export const WEBGPU_FLAG = '--enable-unsafe-webgpu';
 
 const DEBUGGER_RETRY_LIMIT = 40;
 const SERVER_RETRY_LIMIT = 80;
@@ -157,4 +155,19 @@ export async function launchChrome({ profilePrefix, flags = [] }) {
 	};
 
 	return { attach, close };
+}
+
+/**
+ * 페이지 안에서 식을 평가하고 값을 돌려준다. 페이지가 던지면 여기서도 던진다.
+ * 껍질을 각자 벗기면 한 곳이 exceptionDetails 를 빠뜨려 오류가 값 없음으로 조용히 흘러간다.
+ */
+export function createEvaluate(send, sessionId) {
+	return async (expression) => {
+		const out = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, sessionId);
+		if (out.result?.exceptionDetails) {
+			throw new Error(out.result.exceptionDetails.exception?.description ?? '페이지에서 평가가 실패했다');
+		}
+
+		return out.result?.result?.value;
+	};
 }

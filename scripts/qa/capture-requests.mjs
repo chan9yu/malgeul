@@ -10,7 +10,7 @@ import { rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { readBase } from './base-url.mjs';
-import { findFreePort, findWorkerAsset, launchChrome, wait, waitForUrl } from './chrome.mjs';
+import { createEvaluate, findFreePort, findWorkerAsset, launchChrome, wait, waitForUrl } from './chrome.mjs';
 
 const DIST_DIR = 'dist';
 const HARNESS_NAME = 'qa-harness.html';
@@ -80,6 +80,7 @@ try {
 	};
 
 	const { send, sessionId } = await chrome.attach(onEvent);
+	const evaluate = createEvaluate(send, sessionId);
 
 	await send('Network.enable', {}, sessionId);
 	await send('Page.enable', {}, sessionId);
@@ -90,21 +91,12 @@ try {
 	let done = null;
 	while (!done && Date.now() < deadline) {
 		await wait(POLL_MS);
-		const probe = await send(
-			'Runtime.evaluate',
-			{ expression: 'window.__done ?? null', returnByValue: true },
-			sessionId
-		);
-		done = probe.result?.result?.value ?? null;
+		done = (await evaluate('window.__done ?? null')) ?? null;
 	}
 	console.log(`\n워커 종료 상태: ${done ?? '시간 안에 끝나지 않음'}`);
 
-	const logged = await send(
-		'Runtime.evaluate',
-		{ expression: "document.querySelector('#log').textContent", returnByValue: true },
-		sessionId
-	);
-	console.log(`\n하네스 마지막 상태: ${logged.result?.result?.value ?? '읽지 못함'}`);
+	const logged = await evaluate("document.querySelector('#log').textContent");
+	console.log(`\n하네스 마지막 상태: ${logged ?? '읽지 못함'}`);
 	console.log(`붙은 대상: ${attachedSessions.join(', ') || '없음'}`);
 
 	const hosts = new Map();
@@ -152,6 +144,7 @@ try {
 	}
 
 	console.log(passed ? '\n판정: 통과' : '\n판정: 실패');
+	process.exitCode = passed ? 0 : 1;
 } finally {
 	await chrome.close();
 	preview.kill();
