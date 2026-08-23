@@ -27,3 +27,4 @@ dist-ssr
 # AI Tools
 _workspace
 .serena
+.playwright-mcp
