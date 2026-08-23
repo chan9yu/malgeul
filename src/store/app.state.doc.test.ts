@@ -42,7 +42,10 @@ function readCodeEdges() {
 }
 
 function readDocTable() {
-	const rowPattern = /^\| (업로드|변환 확인|변환 진행|결과|실패 안내)\s*\| (.+?)\s*\| (.+?)\s*\|$/gm;
+	const rowPattern = new RegExp(
+		String.raw`^\| (${Object.keys(STATE_BY_KOREAN).join('|')})\s*\| (.+?)\s*\| (.+?)\s*\|$`,
+		'gm'
+	);
 	const doc = readFileSync(DESIGN_SPEC_PATH, 'utf8');
 	const edges = new Set<string>();
 	const unmapped: string[] = [];
@@ -65,31 +68,32 @@ function readDocTable() {
 	};
 }
 
+const docTable = readDocTable();
+const codeEdges = readCodeEdges();
+
 describe('DESIGN-SPEC 상태 전이 표와 reduceApp', () => {
 	it('표에서 전이 행을 읽어낸다', () => {
-		expect(readDocTable().edges.size).toBeGreaterThan(0);
+		expect(docTable.edges.size).toBeGreaterThan(0);
 	});
 
 	it('표의 모든 행을 상태와 계기로 대조한다', () => {
-		expect(readDocTable().unmapped).toEqual([]);
+		expect(docTable.unmapped).toEqual([]);
 	});
 
 	it('표에만 있고 리듀서에는 없는 죽은 전이가 없다', () => {
-		const codeEdges = readCodeEdges();
-		const dead = [...readDocTable().edges].filter((edge) => !codeEdges.has(edge));
+		const dead = [...docTable.edges].filter((edge) => !codeEdges.has(edge));
 
 		expect(dead).toEqual([]);
 	});
 
 	it('리듀서에만 있고 표에는 없는 무단 전이가 없다', () => {
-		const docEdges = readDocTable().edges;
-		const unauthorized = [...readCodeEdges()].filter((edge) => !docEdges.has(edge));
+		const unauthorized = [...codeEdges].filter((edge) => !docTable.edges.has(edge));
 
 		expect(unauthorized).toEqual([]);
 	});
 
 	it('비지원 브라우저 안내에서 나가는 전이가 없다', () => {
-		const outgoing = [...readCodeEdges()].filter((edge) => edge.startsWith('unsupported '));
+		const outgoing = [...codeEdges].filter((edge) => edge.startsWith('unsupported '));
 
 		expect(outgoing).toEqual([]);
 	});

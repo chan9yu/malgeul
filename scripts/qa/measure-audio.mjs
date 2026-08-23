@@ -4,7 +4,7 @@
 // 사용법: node scripts/qa/measure-audio.mjs <검증 파일 이름> [mime]
 // 사전 조건: pnpm dev 로 개발 서버가 3600 포트에 떠 있어야 한다.
 
-import { AUTOPLAY_FLAG, launchChrome, wait } from './chrome.mjs';
+import { launchChrome, wait } from './chrome.mjs';
 
 const DEV_PAGE = 'http://localhost:3600/dev.html';
 const FIXTURE_BASE = '/_workspace/fixtures/';
@@ -100,7 +100,7 @@ function readVerdict({ discriminable, distanceToAverage, distanceToLeft }) {
 	return distanceToAverage < distanceToLeft ? '평균 다운믹스' : '좌채널만';
 }
 
-const chrome = await launchChrome({ profilePrefix: 'malgeul-qa-', flags: [AUTOPLAY_FLAG] });
+const chrome = await launchChrome({ profilePrefix: 'malgeul-qa-' });
 
 try {
 	const { send, sessionId } = await chrome.attach();

@@ -10,7 +10,7 @@ import { copyFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
 import { readBase } from './base-url.mjs';
-import { findFreePort, findWorkerAsset, launchChrome, wait, waitForUrl, WEBGPU_FLAG } from './chrome.mjs';
+import { createEvaluate, findFreePort, findWorkerAsset, launchChrome, wait, waitForUrl } from './chrome.mjs';
 
 const DIST_DIR = 'dist';
 const FIXTURE_DIR = resolve('_workspace/fixtures');
@@ -108,7 +108,7 @@ const workerAsset = await findWorkerAsset(DIST_DIR);
 await copyFile(join(FIXTURE_DIR, TIMESTAMP_FIXTURE), join(DIST_DIR, SERVED_FIXTURE));
 
 const preview = spawn('npx', ['vite', 'preview', '--port', String(PREVIEW_PORT), '--strictPort'], { stdio: 'ignore' });
-const chrome = await launchChrome({ profilePrefix: 'malgeul-e2e-', flags: [WEBGPU_FLAG] });
+const chrome = await launchChrome({ profilePrefix: 'malgeul-e2e-' });
 
 const results = [];
 
@@ -120,13 +120,14 @@ try {
 	await send('DOM.enable', {}, sessionId);
 	await send('Runtime.enable', {}, sessionId);
 
+	const evaluateOrThrow = createEvaluate(send, sessionId);
+	// 이 스크립트는 페이지 오류를 결과로 다뤄 검사 표에 담는다. 던지면 남은 사례를 못 본다
 	const evaluate = async (expression) => {
-		const out = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, sessionId);
-		if (out.result?.exceptionDetails) {
-			return { error: out.result.exceptionDetails.exception?.description ?? '알 수 없는 오류' };
+		try {
+			return await evaluateOrThrow(expression);
+		} catch (cause) {
+			return { error: cause.message };
 		}
-
-		return out.result?.result?.value;
 	};
 
 	await send('Page.navigate', { url: PREVIEW_URL }, sessionId);
@@ -222,7 +223,9 @@ try {
 	console.log('\n구간 시각 확인 (배포된 워커에 mp4 해독 PCM 을 직접 넘김)');
 	console.log(`  [${timestampsOk ? '통과' : '실패'}] ${JSON.stringify(timestamps)}`);
 
-	console.log(`\n판정: ${allPassed && timestampsOk ? '통과' : '실패'}`);
+	const passed = allPassed && timestampsOk;
+	console.log(`\n판정: ${passed ? '통과' : '실패'}`);
+	process.exitCode = passed ? 0 : 1;
 } finally {
 	await chrome.close();
 	preview.kill();

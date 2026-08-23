@@ -12,13 +12,15 @@ import { join } from 'node:path';
 
 import { readBase } from './base-url.mjs';
 import { createChecklist } from './checklist.mjs';
-import { AUTOPLAY_FLAG, findFreePort, launchChrome, wait, waitForUrl } from './chrome.mjs';
+import { AUTOPLAY_FLAG, createEvaluate, findFreePort, launchChrome, wait, waitForUrl } from './chrome.mjs';
 
 const HARNESS = 'scripts/qa/result-harness/index.html';
 const BASE = await readBase();
 const POLL_LIMIT = 40;
 const POLL_DELAY_MS = 250;
 const COPY_NOTICE_MS = 2000;
+const SETTLE_LIMIT = 12;
+const SETTLE_DELAY_MS = 150;
 const MANY_ROW_COUNT = 700;
 
 // 화면에 그려지는 값. 문서에서 옮겨 적었다
@@ -44,14 +46,7 @@ const PLAYING_INDEX =
 const { check, report } = createChecklist();
 
 function createPage(send, sessionId, harnessUrl) {
-	const evaluate = async (expression) => {
-		const out = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, sessionId);
-		if (out.result?.exceptionDetails) {
-			throw new Error(out.result.exceptionDetails.exception?.description ?? '평가 실패');
-		}
-
-		return out.result?.result?.value;
-	};
+	const evaluate = createEvaluate(send, sessionId);
 
 	const open = async (query) => {
 		await send('Page.navigate', { url: `${harnessUrl}${query}` }, sessionId);
@@ -176,8 +171,8 @@ async function clickRow(page, row) {
 // 값이 두 번 연달아 같을 때까지 기다린다
 async function readIndexSettled(page) {
 	let previous = null;
-	for (let attempt = 0; attempt < 12; attempt += 1) {
-		await wait(150);
+	for (let attempt = 0; attempt < SETTLE_LIMIT; attempt += 1) {
+		await wait(SETTLE_DELAY_MS);
 		const index = await page.evaluate(PLAYING_INDEX);
 		if (index === previous) {
 			return index;
@@ -517,7 +512,7 @@ async function checkPlaybackPerformance(page, renderLongTasks) {
 	console.log(
 		`\n[성능 실측] 초기 렌더 긴 작업 ${renderLongTasks}건, 재생 중 긴 작업 ${measured.longTasks}건, ` +
 			`합계 차단 ${measured.totalBlockingMs.toFixed(1)}ms, 최장 ${measured.worstMs.toFixed(1)}ms, ` +
-			`timeupdate ${measured.ticks}회, 지난 행 ${measured.distinctRows}개 (개발 서버 기준)`
+			`${measured.steps}번 밀어 지난 행 ${measured.distinctRows}개 (개발 서버 기준)`
 	);
 }
 
