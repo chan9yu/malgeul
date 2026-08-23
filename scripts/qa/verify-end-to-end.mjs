@@ -124,8 +124,23 @@ function createClient(socket) {
 // 시각은 파이프라인이 내놓는 값이라 배포된 워커에 직접 물어 확인한다.
 function buildTimestampProbe(workerAsset) {
 	return `(async () => {
-		const bytes = await (await fetch('/${SERVED_FIXTURE}')).arrayBuffer();
-		const decoded = await new OfflineAudioContext(1, 1, 16000).decodeAudioData(bytes);
+		// 갓 띄운 페이지에서는 오디오 디코더가 늦게 준비돼 첫 시도가 EncodingError 로 떨어진다.
+		// decodeAudioData 가 넘긴 버퍼를 detach 하므로 시도마다 다시 받아야 한다.
+		let decoded = null;
+		let lastCause = null;
+		for (let attempt = 0; attempt < 4; attempt += 1) {
+			try {
+				const bytes = await (await fetch('/${SERVED_FIXTURE}')).arrayBuffer();
+				decoded = await new OfflineAudioContext(1, 1, 16000).decodeAudioData(bytes);
+				break;
+			} catch (cause) {
+				lastCause = cause;
+				await new Promise((r) => setTimeout(r, 1500));
+			}
+		}
+		if (!decoded) {
+			return { error: '디코딩 실패: ' + (lastCause && lastCause.message) };
+		}
 		const target = new OfflineAudioContext(1, Math.ceil(decoded.duration * 16000), 16000);
 		const source = target.createBufferSource();
 		source.buffer = decoded;
