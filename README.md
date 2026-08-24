@@ -19,13 +19,21 @@
 
 ```bash
 pnpm install
-pnpm dev        # 개발 서버
-pnpm build      # 타입 검사와 프로덕션 빌드
-pnpm lint       # ESLint
-pnpm type:check # 타입 검사만
+pnpm dev           # 개발 서버. 3600 포트
+pnpm build         # 타입 검사와 프로덕션 빌드
+pnpm test          # Vitest
+pnpm lint          # ESLint
+pnpm type:check    # 타입 검사만
+pnpm format:check  # Prettier 포맷 검사
 ```
 
 브랜치 전략과 커밋 컨벤션, 머지 전 검사는 [CONTRIBUTING.md](./CONTRIBUTING.md)에 있다.
+
+## 배포
+
+`main`에 푸시하면 GitHub Actions가 게이트를 돌리고 통과한 산출물을 GitHub Pages에 올린다. 설정은 `.github/workflows/deploy.yml`이다.
+
+저장소 이름이 주소에 붙는 프로젝트 페이지라 빌드 `base`를 `/malgeul/`로 잡는다. 이 값이 산출물의 절대 경로 몇 곳을 함께 바꾸므로 바꿀 때는 `docs/product/SPEC.md`의 배포 결정을 먼저 읽는다.
 
 ## 라이선스
 

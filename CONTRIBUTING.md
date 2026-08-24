@@ -41,12 +41,22 @@ pnpm preview   # 빌드 결과 미리 보기
 
 ## 머지 전 검사
 
-아래 검사가 전부 통과해야 `main`으로 머지한다.
+아래 다섯이 전부 통과해야 `main`으로 머지한다. 빠른 실패 순서로 적었다. 타입 검사가 가장 싸고 lint 피드백이 가장 늦다.
 
 ```bash
-pnpm lint          # ESLint
 pnpm type:check    # TypeScript 타입 검사
+pnpm build         # 타입 검사와 프로덕션 빌드
+pnpm test          # Vitest
+pnpm lint          # ESLint
 pnpm format:check  # Prettier 포맷 검사
 ```
 
-lefthook이 커밋 시점에 lint와 포맷 검사를 돌리고 푸시 시점에 타입 검사를 돌린다.
+통과시키려고 테스트를 건너뛰거나 lint 규칙을 끄지 않는다. 그것은 검사를 통과한 것이 아니라 검사를 치운 것이다.
+
+lefthook이 커밋 시점에 lint와 포맷 검사를, 푸시 시점에 타입 검사를 돌린다. build와 test는 손으로 돌린다. GitHub Actions도 `main` 푸시마다 같은 검사를 다시 돌리고, 거기서는 `build`의 `tsc -b`가 타입 검사를 겸한다.
+
+## 브라우저가 있어야 하는 검증
+
+오디오 디코딩과 WebGPU는 node에도 jsdom에도 없어서 게이트가 덮지 못한다. 그 자리는 `scripts/qa/`의 스크립트가 실제 Chrome을 띄워 확인한다. 목록과 실행 순서는 `.agents/skills/qa-gates/SKILL.md`에 있다.
+
+이 스크립트 가운데 종단 확인과 오디오 측정은 `_workspace/fixtures/` 아래의 영상 파일을 읽는다. 이 폴더는 `.gitignore`에 있어 clone한 저장소에는 없다. 직접 만들어 채워야 돌아간다. 필요한 파일은 mp4 모노 음성과 mp4 한국어 음성, mov 스테레오 음성, 오디오 트랙이 없는 mp4 넷이다.
