@@ -46,31 +46,44 @@
 
 	--font-sans: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
 
-	--text-title: 28px;
+	--text-title: 32px;
 	--text-title--line-height: 1.4;
 	--text-title--font-weight: 700;
 	--text-title--letter-spacing: -0.02em;
 
-	--text-section: 20px;
+	--text-section: 24px;
 	--text-section--line-height: 1.5;
-	--text-section--font-weight: 600;
+	--text-section--font-weight: 700;
 	--text-section--letter-spacing: -0.02em;
+
+	--text-lead: 15px;
+	--text-lead--line-height: 1.6;
+	--text-lead--font-weight: 400;
 
 	--text-body: 16px;
 	--text-body--line-height: 1.8;
 	--text-body--font-weight: 400;
+
+	--text-item: 16px;
+	--text-item--line-height: 1.5;
+	--text-item--font-weight: 400;
 
 	--text-sub: 14px;
 	--text-sub--line-height: 1.6;
 	--text-sub--font-weight: 400;
 
 	--text-timestamp: 13px;
-	--text-timestamp--line-height: 1;
+	--text-timestamp--line-height: 1.8;
 	--text-timestamp--font-weight: 500;
 
-	--spacing: 8px;
+	/* 시안의 간격이 14px 와 18px, 10px, 6px, 2px 를 쓴다. 4px 를 기준으로 두면 이 값들이 모두 잡힌다 */
+	--spacing: 4px;
 
-	--radius-box: 8px;
+	--radius-row: 12px;
+	--radius-button: 14px;
+	--radius-callout: 16px;
+	--radius-card: 20px;
+	--radius-pill: 999px;
 
 	--container-content: 1200px;
 	--container-column: 640px;
@@ -87,6 +100,8 @@
 		font-family: var(--font-sans);
 		font-size: var(--text-body);
 		line-height: var(--text-body--line-height);
+		/* 시안이 전역 자간을 -0.01em 로 잡는다. 제목만 -0.02em 로 더 좁힌다 */
+		letter-spacing: -0.01em;
 		color: var(--color-text);
 		background-color: var(--color-bg);
 		-webkit-font-smoothing: antialiased;
