@@ -86,18 +86,26 @@ for (const format of ['txt', 'srt', 'vtt']) {
 }
 
 // ---- 5. 타이포그래피 표와 CSS ----
-const typeRows = [
-	...design.matchAll(
-		/^\| (화면 제목|절 제목|본문과 변환 결과 문장|보조 설명|타임스탬프)\s*\| (\d+)px\s*\| (\d+)\s*\| ([\d.]+)\s*\|$/gm
-	)
-];
 const typeKey = {
 	'화면 제목': 'title',
 	'절 제목': 'section',
 	'본문과 변환 결과 문장': 'body',
+	'목록 항목': 'item',
+	'머리말 설명': 'lead',
 	'보조 설명': 'sub',
 	타임스탬프: 'timestamp'
 };
+const typeRows = [
+	...design.matchAll(
+		new RegExp(String.raw`^\| (${Object.keys(typeKey).join('|')})\s*\| (\d+)px\s*\| (\d+)\s*\| ([\d.]+)\s*\|$`, 'gm')
+	)
+];
+check(
+	'타이포 표',
+	`표의 행 수가 ${Object.keys(typeKey).length}`,
+	typeRows.length === Object.keys(typeKey).length,
+	`${typeRows.length}행`
+);
 for (const [, role, size, weight, lineHeight] of typeRows) {
 	const key = typeKey[role];
 	check('타이포 크기', `${key} ${size}px`, css.includes(`--text-${key}: ${size}px;`));
@@ -113,12 +121,26 @@ for (const [, role, size, weight, lineHeight] of typeRows) {
 }
 
 // ---- 6. SPEC 수치 ----
-check('SPEC 수치', '크기 제한 2,147,483,648바이트', findInCode('2_147_483_648').length > 0);
+// 숫자를 여기에 적으면 문서를 고쳐도 검사가 옛 값을 본다. SPEC 의 검사 순서 절에서 읽는다
+const sizeLimit = /크기: [\d.]+GB\(([\d,]+)바이트\)/.exec(spec);
+check('SPEC 수치', '크기 제한을 문서에서 읽었다', sizeLimit !== null, sizeLimit ? sizeLimit[1] : '없음');
+if (sizeLimit) {
+	const digits = sizeLimit[1].replaceAll(',', '');
+	const withSeparators = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '_');
+	check('SPEC 수치', `크기 제한 ${sizeLimit[1]}바이트`, findInCode(withSeparators).length > 0, withSeparators);
+}
 check('SPEC 수치', '길이 제한 7,200초', findInCode('7_200').length > 0);
 check('SPEC 수치', '폴백 스택', css.includes("'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif"));
 check('DESIGN-SPEC 치수', '콘텐츠 1200px', css.includes('--container-content: 1200px;'));
 check('DESIGN-SPEC 치수', '열 640px', css.includes('--container-column: 640px;'));
-check('DESIGN 간격', '모서리 반경 8px', css.includes('--radius-box: 8px;'));
-check('DESIGN 간격', '간격 8px 배수', css.includes('--spacing: 8px;'));
+// ---- 7. 반경 표와 CSS ----
+// 값을 여기에 적으면 문서를 고쳐도 검사가 옛 값을 본다. 표에서 읽어 대조한다
+const radiusRows = [...design.matchAll(/^\|[^|]+\|\s*`([a-z]+)`\s*\|\s*(\d+)px\s*\|$/gm)];
+check('DESIGN 반경 표', '표에서 행을 뽑았다', radiusRows.length > 0, `${radiusRows.length}행`);
+for (const [, name, value] of radiusRows) {
+	check('DESIGN 반경', `${name} ${value}px`, css.includes(`--radius-${name}: ${value}px;`));
+}
+
+check('DESIGN 간격', '간격 4px 배수', css.includes('--spacing: 4px;'));
 
 process.exit(report() > 0 ? 1 : 0);

@@ -5,6 +5,7 @@ import '../../../src/styles/index.css';
 
 import { createRoot } from 'react-dom/client';
 
+import { AppFrame } from '../../../src/components/AppFrame';
 import { ResultPage } from '../../../src/pages/ResultPage';
 import type { Transcript, TranscriptSegment } from '../../../src/services';
 import { readVideoDuration } from '../../../src/utils/upload.duration';
@@ -79,12 +80,13 @@ Object.assign(window, {
 	}
 });
 
+// 앱과 같은 틀로 감싼다. 폭과 높이 제약이 AppFrame 에 있어서 직접 감싸면 다른 구조를 검사하게 된다
 createRoot(rootElement).render(
-	<div className="mx-auto w-full max-w-content px-4 py-5">
+	<AppFrame wide>
 		<ResultPage
 			accepted={{ file, durationSeconds: videoSeconds }}
 			transcript={transcript}
 			onNewVideo={() => Object.assign(window, { qaNewVideoClicked: true })}
 		/>
-	</div>
+	</AppFrame>
 );

@@ -6,6 +6,7 @@ import { reduceApp } from './app.state';
 import { ALL_EVENTS, ALL_STATES } from './app.state.fixture';
 
 const DESIGN_SPEC_PATH = 'docs/design/DESIGN-SPEC.md';
+const TRANSITION_HEADING = '## 상태 전이';
 
 const STATE_BY_KOREAN: Record<string, string> = {
 	업로드: 'upload',
@@ -41,16 +42,34 @@ function readCodeEdges() {
 	return edges;
 }
 
+/**
+ * 전이 표만 잘라 낸다. 문서에는 상태 이름으로 시작하는 3열 표가 또 있어서(화면마다의 제목 표)
+ * 파일 전체에 정규식을 걸면 그쪽 행까지 전이로 읽는다.
+ */
+function readTransitionSection() {
+	const doc = readFileSync(DESIGN_SPEC_PATH, 'utf8');
+	const start = doc.indexOf(TRANSITION_HEADING);
+
+	if (start === -1) {
+		throw new Error(`${DESIGN_SPEC_PATH}에 ${TRANSITION_HEADING} 절이 없다`);
+	}
+
+	const rest = doc.slice(start + TRANSITION_HEADING.length);
+	const end = rest.indexOf('\n## ');
+
+	return end === -1 ? rest : rest.slice(0, end);
+}
+
 function readDocTable() {
 	const rowPattern = new RegExp(
 		String.raw`^\| (${Object.keys(STATE_BY_KOREAN).join('|')})\s*\| (.+?)\s*\| (.+?)\s*\|$`,
 		'gm'
 	);
-	const doc = readFileSync(DESIGN_SPEC_PATH, 'utf8');
+	const section = readTransitionSection();
 	const edges = new Set<string>();
 	const unmapped: string[] = [];
 
-	for (const [, from, trigger, to] of doc.matchAll(rowPattern)) {
+	for (const [, from, trigger, to] of section.matchAll(rowPattern)) {
 		const eventType = EVENT_BY_TRIGGER[trigger];
 		const target = STATE_BY_KOREAN[to.split(' (')[0].trim()];
 

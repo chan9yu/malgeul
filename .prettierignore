@@ -14,3 +14,6 @@ pnpm-lock.yaml
 
 # 로컬 설정
 .claude/settings.local.json
+
+# 디자인 시안 참조 (번들된 HTML, diff 불가)
+design
