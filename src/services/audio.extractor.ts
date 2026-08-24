@@ -1,3 +1,4 @@
+import { mixChannelsToMono } from './audio.downmix';
 import { AudioExtractionError } from './audio.error';
 import type { ExtractedAudio } from './types';
 
@@ -12,7 +13,7 @@ export async function extractAudio(file: File): Promise<ExtractedAudio> {
 		throw new AudioExtractionError('EMPTY_AUDIO');
 	}
 
-	const pcm = await renderMonoPcm(decoded);
+	const pcm = renderMonoPcm(decoded);
 
 	return {
 		pcm,
@@ -39,26 +40,12 @@ async function decodeAudioTrack(bytes: ArrayBuffer) {
 	}
 }
 
-/**
- * decodeAudioData가 이미 16kHz로 리샘플링해 두므로 남은 일은 다운믹스뿐이다.
- * 입력이 모노면 바꿀 것이 없어 채널을 그대로 돌려준다.
- */
-async function renderMonoPcm(decoded: AudioBuffer) {
-	if (decoded.numberOfChannels === TARGET_CHANNEL_COUNT) {
-		return decoded.getChannelData(0);
-	}
-
-	const frameCount = Math.ceil(decoded.duration * TARGET_SAMPLE_RATE);
+/** decodeAudioData가 이미 16kHz로 리샘플링해 두므로 남은 일은 다운믹스뿐이다 */
+function renderMonoPcm(decoded: AudioBuffer) {
+	const channels = Array.from({ length: decoded.numberOfChannels }, (_, index) => decoded.getChannelData(index));
 
 	try {
-		const target = new OfflineAudioContext(TARGET_CHANNEL_COUNT, frameCount, TARGET_SAMPLE_RATE);
-		const source = target.createBufferSource();
-		source.buffer = decoded;
-		source.connect(target.destination);
-		source.start();
-		const rendered = await target.startRendering();
-
-		return rendered.getChannelData(0);
+		return mixChannelsToMono(channels);
 	} catch (cause) {
 		throw new AudioExtractionError('RESAMPLE', cause);
 	}
