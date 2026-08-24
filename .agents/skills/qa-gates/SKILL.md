@@ -59,6 +59,8 @@ node scripts/qa/verify-screen-contents.mjs # 화면이 실제로 닿는 문구 �
 실제 Chrome을 띄우는 것들이다. `pnpm build` 뒤에 돌린다.
 
 ```bash
+node scripts/qa/verify-downmix.mjs        # 다채널 파일의 소리가 합쳐져 남는지
+node scripts/qa/verify-size-limit.mjs      # 받아 주는 최대 크기가 실제로 읽히는지
 node scripts/qa/verify-result-screen.mjs   # 결과 화면. 모델을 받지 않아 빠르다
 node scripts/qa/verify-end-to-end.mjs      # mp4와 mov 종단. 모델 563MB를 받아 10분 넘는다
 node scripts/qa/capture-requests.mjs       # 외부 요청 수집. 마찬가지로 오래 걸린다
@@ -67,14 +69,9 @@ node scripts/qa/measure-audio.mjs <파일>   # 추출한 PCM을 숫자로 잰다
 
 `chrome.mjs`와 `base-url.mjs`, `checklist.mjs`는 스크립트가 아니라 위 스크립트들이 함께 쓰는 모듈이다. Chrome을 띄우고 붙는 골격과 빈 포트 찾기, `dist/index.html`에서 `base` 읽기, 검사 결과 출력이 여기 있다. 새 스크립트를 만들면 이것들을 쓴다. 같은 골격을 다시 적으면 한 벌에서만 예외를 놓치는 식으로 갈라진다.
 
-종단 확인과 오디오 측정은 `_workspace/fixtures/` 아래 영상을 읽는다. 이 폴더는 `.gitignore`에 있어 clone한 저장소에는 없다. 필요한 파일은 넷이다.
+검증 스크립트가 읽는 영상은 `_workspace/fixtures/`에 있고 `.gitignore`에 걸려 있다. clone한 저장소에는 없으니 `scripts/qa/fixtures/`의 생성기로 만든다. 무엇이 필요하고 어떻게 만드는지는 그 폴더의 `README.md`가 정본이다.
 
-| 파일                | 내용                          |
-| ------------------- | ----------------------------- |
-| `speech-mono.mp4`   | mp4 모노 음성                 |
-| `korean-short.mp4`  | 한국어 음성. 구간 시각 확인용 |
-| `speech-stereo.mov` | mov 스테레오 음성             |
-| `no-audio.mp4`      | 오디오 트랙이 없는 mp4        |
+픽스처는 검사의 일부다. 8채널 다운믹스 결함은 8채널 파일이 생긴 뒤에야 드러났다. 검사에 새 조건이 필요하면 픽스처부터 만들고 만드는 방법을 README에 적는다. 만드는 방법을 남기지 않으면 다음 사람은 그 검사를 돌리지 못한다.
 
 스크립트가 없으면 만들어 `scripts/qa/`에 둔다. 같은 검증을 반복하게 되므로 일회용으로 버리지 않는다.
 
@@ -85,6 +82,10 @@ node scripts/qa/measure-audio.mjs <파일>   # 추출한 PCM을 숫자로 잰다
 무엇을 실제로 했는지를 판정에 넣어야 한다. 이 경우는 워커가 model-ready 에 닿았는지와 wasm 을 받았는지다. 성립하지 않았으면 무엇이 성립하지 않았는지 찍는다.
 
 **원인을 고치는 것과 그 증상을 잡는 판정을 만드는 것은 다르다.** 앞의 것만 하면 다음 원인에 다시 뚫린다. 이 검사는 같은 증상을 두 번 겪었고 첫 번째에 원인만 고쳤다.
+
+**규칙을 검사한 것과 그 규칙이 실제로 되는지 확인한 것은 다르다.** 업로드 크기 검사가 그랬다. 테스트는 `{name, size}` 가짜 객체로 경계값을 확인해 늘 초록이었고, 그 크기의 파일을 브라우저가 읽을 수 있는지는 아무도 보지 않았다. 제한을 2GB에서 5GB로 올렸을 때 게이트 다섯과 검증 스크립트 넷이 전부 통과했고 실제 4GB 파일에서 처음 터졌다.
+
+숫자로 된 한계를 두면 그 한계에서 실물이 동작하는지 함께 확인한다. 픽스처가 전부 1MB 미만인데 제한이 GB 단위면 그 사이는 한 번도 확인된 적이 없는 구간이다.
 
 **게이트에 걸리는 자리에 둔다.** 어느 게이트도 부르지 않는 검사는 한 번도 돌지 않는다. 순수 함수 검사는 `src/**/*.test.ts`로 두어 `pnpm test`가 수집하게 하고, 브라우저가 필요한 것만 `scripts/qa/`에 둔다. 만든 뒤 `pnpm exec vitest list`로 실제 수집되는지 본다.
 
