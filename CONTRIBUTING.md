@@ -59,4 +59,4 @@ lefthook이 커밋 시점에 lint와 포맷 검사를, 푸시 시점에 타입 �
 
 오디오 디코딩과 WebGPU는 node에도 jsdom에도 없어서 게이트가 덮지 못한다. 그 자리는 `scripts/qa/`의 스크립트가 실제 Chrome을 띄워 확인한다. 목록과 실행 순서는 `.agents/skills/qa-gates/SKILL.md`에 있다.
 
-이 스크립트 가운데 종단 확인과 오디오 측정은 `_workspace/fixtures/` 아래의 영상 파일을 읽는다. 이 폴더는 `.gitignore`에 있어 clone한 저장소에는 없다. 직접 만들어 채워야 돌아간다. 필요한 파일은 mp4 모노 음성과 mp4 한국어 음성, mov 스테레오 음성, 오디오 트랙이 없는 mp4 넷이다.
+이 스크립트들은 `_workspace/fixtures/` 아래의 영상 파일을 읽는다. 이 폴더는 `.gitignore`에 있어 clone한 저장소에는 없다. `scripts/qa/fixtures/`의 생성기로 만든다. 무엇이 필요하고 어떻게 만드는지는 그 폴더의 `README.md`에 있다. macOS 기본 도구만 쓰므로 따로 설치할 것은 없다.

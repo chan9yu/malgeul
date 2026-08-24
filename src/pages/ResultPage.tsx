@@ -9,6 +9,7 @@ import { useObjectUrl } from '../hooks/useObjectUrl';
 import type { ExportFormat, Transcript } from '../services';
 import { buildTxt, downloadTranscript } from '../services';
 import { findPlayingSegmentIndex, NO_PLAYING_SEGMENT } from '../utils/playing-segment';
+import { formatTimecode } from '../utils/timecode';
 import type { AcceptedFile } from '../utils/upload.validation';
 
 const COPY_NOTICE_MS = 2000;
@@ -78,12 +79,18 @@ export function ResultPage({ accepted, transcript, onNewVideo }: ResultPageProps
 	};
 
 	return (
-		<div className="flex items-start gap-4">
-			<div className="sticky top-0 w-[45%] min-w-[420px] shrink-0 bg-bg py-2">
+		<div className="flex h-full items-start gap-8">
+			<div className="w-[45%] min-w-[420px] shrink-0">
 				<VideoPlayer ref={videoRef} src={videoUrl} onTimeUpdate={handleTimeUpdate} />
+				<div className="mt-3 flex items-baseline gap-2 px-1">
+					<p className="truncate text-sub font-semibold">{accepted.file.name}</p>
+					<p className="shrink-0 text-timestamp font-medium tabular-nums text-text-sub">
+						{formatTimecode(transcript.durationSeconds, transcript.durationSeconds)}
+					</p>
+				</div>
 			</div>
 
-			<div className="flex min-w-0 flex-1 flex-col">
+			<div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
 				<ResultToolbar
 					copyNotice={copyNotice}
 					exportDisabled={!hasSentences}
@@ -92,14 +99,16 @@ export function ResultPage({ accepted, transcript, onNewVideo }: ResultPageProps
 					onNewVideo={onNewVideo}
 				/>
 				{hasSentences ? (
-					<SentenceList
-						segments={transcript.segments}
-						durationSeconds={transcript.durationSeconds}
-						playingIndex={playingIndex}
-						onSelect={handleSelect}
-					/>
+					<div className="min-h-0 flex-1 overflow-y-auto">
+						<SentenceList
+							segments={transcript.segments}
+							durationSeconds={transcript.durationSeconds}
+							playingIndex={playingIndex}
+							onSelect={handleSelect}
+						/>
+					</div>
 				) : (
-					<div className="pt-2">
+					<div className="mt-3">
 						<Callout tone="info">{NO_SENTENCE_NOTICE}</Callout>
 					</div>
 				)}

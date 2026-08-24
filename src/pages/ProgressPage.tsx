@@ -1,5 +1,5 @@
-import { CenterColumn } from '../components/CenterColumn';
 import { ProgressIndicator } from '../components/ProgressIndicator';
+import { ScreenHeading } from '../components/ScreenHeading';
 import type { PipelineProgress } from '../services';
 
 interface ProgressPageProps {
@@ -9,9 +9,9 @@ interface ProgressPageProps {
 
 export function ProgressPage({ fileName, progress }: ProgressPageProps) {
 	return (
-		<CenterColumn>
-			<p className="text-sub text-text-sub">{fileName}</p>
+		<>
+			<ScreenHeading title="변환하고 있어요" subtitle={fileName} />
 			<ProgressIndicator progress={progress} />
-		</CenterColumn>
+		</>
 	);
 }

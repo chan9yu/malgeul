@@ -66,16 +66,23 @@ function createPage(send, sessionId, harnessUrl) {
 
 async function checkEmptyList(page) {
 	const empty = await page.evaluate(`(() => {
-		// 바깥 감싸개도 같은 글을 담는다. 가장 안쪽 것을 잡아야 바탕색이 안내문의 것이다
-		const notice = [...document.querySelectorAll('div')]
-			.filter((n) => n.textContent.trim() === ${JSON.stringify(EMPTY_NOTICE)})
-			.at(-1);
+		// 같은 글을 담는 div 가 여럿이다. 바깥 감싸개와 안내문 상자, 그 안의 글 상자다.
+		// 겹의 깊이는 안내문 생김새가 바뀔 때마다 달라지므로 바탕이 칠해진 것을 찾는다
+		const candidates = [...document.querySelectorAll('div')].filter(
+			(n) => n.textContent.trim() === ${JSON.stringify(EMPTY_NOTICE)}
+		);
+		const painted = candidates.filter((n) => {
+			const bg = getComputedStyle(n).backgroundColor;
+			return bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent';
+		});
+		const notice = candidates.at(-1);
 		const buttons = [...document.querySelectorAll('button')];
 		const byText = (t) => buttons.find((b) => b.textContent.includes(t));
 		const byLabel = (l) => buttons.find((b) => b.getAttribute('aria-label') === l);
 		return {
 			noticeFound: !!notice,
-			noticeBackground: notice ? getComputedStyle(notice).backgroundColor : null,
+			paintedCount: painted.length,
+			noticeBackground: painted.length === 1 ? getComputedStyle(painted[0]).backgroundColor : null,
 			rows: document.querySelectorAll('ul li').length,
 			copyDisabled: byText(${JSON.stringify(COPY_IDLE)})?.disabled ?? null,
 			downloadsDisabled: ${JSON.stringify(DOWNLOAD_LABELS)}.map((l) => byLabel(l)?.disabled ?? null),
@@ -84,6 +91,7 @@ async function checkEmptyList(page) {
 	})()`);
 
 	check('빈 목록', '안내 문구가 그대로 그려진다', empty.noticeFound === true);
+	check('빈 목록', '바탕이 칠해진 상자가 하나다', empty.paintedCount === 1, `${empty.paintedCount}개`);
 	check('빈 목록', 'brand-soft 바탕', empty.noticeBackground === BRAND_SOFT, `${empty.noticeBackground}`);
 	check('빈 목록', '문장 행이 없다', empty.rows === 0, `${empty.rows}행`);
 	check('빈 목록', '전체 복사가 비활성', empty.copyDisabled === true);
@@ -423,14 +431,26 @@ async function checkTwoColumnLayout(page) {
 	const layout = await page.evaluate(`(async () => {
 		const video = document.querySelector('video');
 		const list = document.querySelector('ul');
-		const toolbar = list.parentElement.firstElementChild;
+		const scroller = list.parentElement;
+		const rightColumn = scroller.parentElement;
+		const toolbar = rightColumn.firstElementChild;
 		const left = video.closest('div');
 		const content = left.parentElement;
 		const rect = (n) => n.getBoundingClientRect();
-		const before = { video: rect(video).top, toolbar: rect(toolbar).top };
+		const before = { video: rect(video).top, toolbar: rect(toolbar).top, firstRow: rect(list.firstElementChild).top };
+
+		// 목록 상자만 내린다. 창을 내리는 것과 달리 헤더와 플레이어는 그대로 있어야 한다
+		scroller.scrollTop = 1500;
 		window.scrollTo(0, 1500);
 		await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-		const after = { video: rect(video).top, toolbar: rect(toolbar).top, scrolled: window.scrollY };
+
+		const after = {
+			video: rect(video).top,
+			toolbar: rect(toolbar).top,
+			firstRow: rect(list.firstElementChild).top,
+			listScrolled: scroller.scrollTop,
+			windowScrolled: window.scrollY
+		};
 		const leftRect = rect(left);
 		const videoRect = rect(video);
 		return {
@@ -438,6 +458,7 @@ async function checkTwoColumnLayout(page) {
 			leftWidth: leftRect.width,
 			aspect: videoRect.width / videoRect.height,
 			sideBySide: rect(list).left > leftRect.right - 1,
+			listOverflows: scroller.scrollHeight > scroller.clientHeight,
 			before,
 			after
 		};
@@ -451,17 +472,32 @@ async function checkTwoColumnLayout(page) {
 	);
 	check('2단 배치', '목록이 플레이어 오른쪽에 온다', layout.sideBySide === true);
 	check('2단 배치', '플레이어가 16:9 다', Math.abs(layout.aspect - 16 / 9) < RATIO_TOLERANCE, layout.aspect.toFixed(3));
+	// 아래 셋은 목록이 넘쳐 스크롤이 생겨야 뜻이 있다. 안 넘치면 무엇을 밀어도 아무것도 안 움직여
+	// 고정 검사가 전부 참으로 나온다
+	check('목록 스크롤', '목록이 상자를 넘어 스크롤이 생긴다', layout.listOverflows === true);
 	check(
-		'2단 배치',
-		'스크롤해도 플레이어가 따라온다',
-		layout.after.scrolled > 500 && layout.after.video < layout.before.video + 20,
-		`${layout.after.scrolled}px 내려도 플레이어 top ${layout.after.video.toFixed(0)}`
+		'목록 스크롤',
+		'목록 상자만 내려간다',
+		layout.after.listScrolled > 500 && Math.abs(layout.after.firstRow - layout.before.firstRow) > 500,
+		`상자 ${layout.after.listScrolled}px, 첫 행이 ${(layout.before.firstRow - layout.after.firstRow).toFixed(0)}px 올라감`
 	);
 	check(
-		'2단 배치',
-		'스크롤해도 도구 막대가 위에 남는다',
-		layout.after.toolbar >= -1 && layout.after.toolbar < 20,
-		`도구 막대 top ${layout.after.toolbar.toFixed(0)}`
+		'목록 스크롤',
+		'창은 움직이지 않는다',
+		layout.after.windowScrolled === 0,
+		`window.scrollY ${layout.after.windowScrolled}`
+	);
+	check(
+		'목록 스크롤',
+		'목록을 내려도 플레이어가 제자리다',
+		Math.abs(layout.after.video - layout.before.video) < 1,
+		`플레이어 top ${layout.before.video.toFixed(0)} -> ${layout.after.video.toFixed(0)}`
+	);
+	check(
+		'목록 스크롤',
+		'목록을 내려도 도구 막대가 제자리다',
+		Math.abs(layout.after.toolbar - layout.before.toolbar) < 1,
+		`도구 막대 top ${layout.before.toolbar.toFixed(0)} -> ${layout.after.toolbar.toFixed(0)}`
 	);
 
 	await page.send('Emulation.clearDeviceMetricsOverride', {}, page.sessionId);

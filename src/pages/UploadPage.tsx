@@ -1,6 +1,5 @@
 import { Callout } from '../components/Callout';
-import { CenterColumn } from '../components/CenterColumn';
-import { ConversionHeading } from '../components/ConversionHeading';
+import { ScreenHeading } from '../components/ScreenHeading';
 import { UploadArea } from '../components/UploadArea';
 import { useWindowFileDrag } from '../hooks/useWindowFileDrag';
 import type { UploadRejection } from '../utils/upload.validation';
@@ -17,20 +16,29 @@ export function UploadPage({ rejection, modelCached, onFilesPicked }: UploadPage
 	const dragging = useWindowFileDrag(onFilesPicked);
 
 	return (
-		<CenterColumn>
-			<ConversionHeading />
+		<>
+			<ScreenHeading
+				title="영상을 텍스트로"
+				subtitle="mp4와 mov 영상 속 한국어 음성을 이 브라우저 안에서 텍스트로 바꿉니다"
+			/>
 
 			<UploadArea dragging={dragging} onFilesPicked={onFilesPicked} />
 
-			{rejection && <Callout tone="error">{UPLOAD_REJECTION_MESSAGE[rejection]}</Callout>}
+			{rejection && (
+				<div className="mt-3">
+					<Callout tone="error">{UPLOAD_REJECTION_MESSAGE[rejection]}</Callout>
+				</div>
+			)}
 
-			<p className="text-sub text-text-sub">mp4, mov 파일 하나. 최대 2GB, 최대 2시간</p>
+			<p className="mt-3 text-center text-sub text-text-sub">mp4, mov 파일 하나. 최대 1.9GB, 최대 2시간</p>
 
 			{modelCached === false && (
-				<Callout tone="info">
-					첫 변환 때 음성 인식 모델 약 600MB를 내려받습니다. 다음부터는 저장된 모델로 바로 시작합니다
-				</Callout>
+				<div className="mt-8">
+					<Callout tone="info">
+						첫 변환에는 음성 인식 모델 약 600MB를 내려받습니다. 다음부터는 저장된 모델로 바로 시작합니다.
+					</Callout>
+				</div>
 			)}
-		</CenterColumn>
+		</>
 	);
 }

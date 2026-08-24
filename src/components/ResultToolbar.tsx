@@ -21,8 +21,8 @@ interface ResultToolbarProps {
 
 export function ResultToolbar({ copyNotice, exportDisabled, onCopyAll, onDownload, onNewVideo }: ResultToolbarProps) {
 	return (
-		<div className="sticky top-0 z-10 flex items-center gap-1 border-b border-border bg-bg py-2">
-			<Button variant="primary" disabled={exportDisabled} onClick={onCopyAll}>
+		<div className="flex shrink-0 items-center gap-2 pb-5">
+			<Button variant="primary" size="small" disabled={exportDisabled} onClick={onCopyAll}>
 				<span className="grid">
 					{Object.entries(COPY_LABEL).map(([notice, label]) => (
 						<span key={notice} className={`col-start-1 row-start-1 ${notice === copyNotice ? '' : 'invisible'}`}>
@@ -36,6 +36,7 @@ export function ResultToolbar({ copyNotice, exportDisabled, onCopyAll, onDownloa
 				<Button
 					key={format}
 					variant="secondary"
+					size="small"
 					disabled={exportDisabled}
 					ariaLabel={`${format} 내려받기`}
 					onClick={() => onDownload(format)}
@@ -45,7 +46,7 @@ export function ResultToolbar({ copyNotice, exportDisabled, onCopyAll, onDownloa
 			))}
 
 			<div className="ml-auto">
-				<Button variant="secondary" onClick={onNewVideo}>
+				<Button variant="secondary" size="small" onClick={onNewVideo}>
 					새 영상 변환
 				</Button>
 			</div>

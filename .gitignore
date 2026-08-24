@@ -31,3 +31,6 @@ _workspace
 
 # 로컬 설정
 .claude/settings.local.json
+
+# 디자인 시안 원본 (임시 URL 에서 받은 번들. 값은 docs/design 에 옮겨 적는다)
+design

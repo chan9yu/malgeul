@@ -3,19 +3,24 @@ import { readVideoDuration } from './upload.duration';
 export type UploadRejection =
 	| 'COUNT' // 한 번에 두 개 이상을 놓았다
 	| 'EXTENSION' // 이름이 mp4나 mov로 끝나지 않는다
-	| 'SIZE' // 2GB를 넘는다
+	| 'SIZE' // 1.9GB를 넘는다
 	| 'DURATION' // 2시간을 넘는다
 	| 'METADATA'; // 재생 시간을 읽지 못했다
 
 export const UPLOAD_REJECTION_MESSAGE: Record<UploadRejection, string> = {
 	COUNT: '파일은 한 번에 하나만 받습니다',
 	EXTENSION: 'mp4나 mov 파일만 받습니다',
-	SIZE: '2GB를 넘는 파일은 받을 수 없습니다',
+	SIZE: '파일이 1.9GB를 넘습니다. 더 작은 파일을 올려 주세요.',
 	DURATION: '2시간을 넘는 영상은 받을 수 없습니다',
 	METADATA: '영상 정보를 읽지 못했습니다. 파일이 손상되었을 수 있습니다'
 };
 
-const MAX_FILE_BYTES = 2_147_483_648;
+/**
+ * Chrome 은 2GiB 이상인 Blob 을 arrayBuffer() 로 읽지 못하고 NotReadableError 를 던진다.
+ * 조각내어 읽어도 담을 ArrayBuffer 를 만들지 못한다. 렌더러의 상한이 2047MiB 아래다.
+ * 실측으로 2,100,000,000 바이트까지 읽히는 것을 확인했고 여기에 여유를 두어 1900MiB 로 잡는다.
+ */
+const MAX_FILE_BYTES = 1_992_294_400;
 const MAX_DURATION_SECONDS = 7_200;
 const ALLOWED_EXTENSIONS = ['.mp4', '.mov'];
 
