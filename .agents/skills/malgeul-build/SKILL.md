@@ -59,8 +59,8 @@ pipeline-dev와 ui-dev가 함께 일하는 마일스톤에서는 구현 전에 �
 
 ### Phase 5: 완료
 
-1. qa-inspector가 게이트 전체(type:check, build, lint, format:check)를 마지막으로 한 번 돌린다
-2. 증거가 있는 항목만 ROADMAP 체크리스트에 체크한다. 수동 확인이 필요한 항목(소리가 들리는지, 30분 영상 메모리)은 사용자에게 확인 방법을 안내하고 남긴다
+1. qa-inspector가 게이트 다섯(type:check, build, test, lint, format:check)을 마지막으로 한 번 돌린다
+2. 증거가 있는 항목만 ROADMAP 체크리스트에 체크한다. 사람이 눈이나 귀로 봐야 하는 항목은 ROADMAP의 남은 수동 확인 절에 방법과 함께 적고 체크하지 않는다
 3. 사용자에게 결과를 보고한다. 만든 것과 확인한 것, 남은 것을 구분한다
 4. 피드백을 요청한다. 결과물이나 팀 구성, 워크플로우에 고칠 점이 있는지 묻고, 있으면 해당 에이전트 정의나 스킬을 수정하고 AGENTS.md 하네스 변경 이력에 기록한다
 
@@ -89,7 +89,7 @@ pipeline-dev와 ui-dev가 함께 일하는 마일스톤에서는 구현 전에 �
 3. Phase 1에서 체크리스트 다섯 항목을 pipeline-dev에게 배정하고 feature/audio-extraction 브랜치를 확인한다
 4. Phase 3에서 pipeline-dev가 디코딩과 리샘플링, 임시 개발 페이지를 구현한다
 5. Phase 4에서 qa-inspector가 게이트와 실패 파일 처리를 검증한다
-6. Phase 5에서 증거 있는 항목을 체크하고, 소리가 들리는지는 사용자 확인으로 남긴다
+6. Phase 5에서 증거 있는 항목을 체크하고, 소리가 들리는지는 남은 수동 확인으로 넘긴다
 
 ### 에러 흐름: 경계면 불일치 발견
 

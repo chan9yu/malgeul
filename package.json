@@ -9,6 +9,7 @@
 		"type": "git",
 		"url": "https://github.com/chan9yu/malgeul"
 	},
+	"homepage": "https://chan9yu.github.io/malgeul/",
 	"license": "MIT",
 	"author": "chan9yu <dev.cgyeo@gmail.com>",
 	"packageManager": "pnpm@11.22.0",
