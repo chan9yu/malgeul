@@ -42,29 +42,54 @@ const pcm = rendered.getChannelData(0); // Float32Array, Whisper 입력
 
 transformers.js로 Whisper를 돌린다. 모델은 whisper-large-v3-turbo 양자화(약 600MB), 실행은 WebGPU다.
 
-**API를 지어내지 않는다.** transformers.js는 버전마다 옵션 이름과 dtype 조합이 다르다. 구현 전에 설치된 버전의 문서나 타입 정의를 확인하고, 모델의 정확한 저장소 이름은 Hugging Face의 onnx-community에서 whisper-large-v3-turbo ONNX 변환본을 확인해 쓴다.
+**API를 지어내지 않는다.** transformers.js는 버전마다 옵션 이름과 dtype 조합이 다르다. 구현 전에 설치된 버전의 문서나 타입 정의를 확인하고, 모델의 정확한 저장소 이름은 Hugging Face의 onnx-community에서 whisper-large-v3-turbo ONNX 변환본을 확인해 쓴다. 지금 쓰는 값은 `model.config.ts`에 모여 있다.
 
-확인이 필요한 지점들:
-
-- pipeline 생성 옵션: device를 webgpu로, dtype은 인코더와 디코더 조합을 버전 문서에서 확인
+- device는 webgpu, dtype은 문자열 `q4f16` 하나다. 실제로 받는 양은 약 563MB이고 화면 문구는 이것을 올려 600MB로 적는다
 - 다운로드 진행률: pipeline 생성의 progress_callback으로 파일별 loaded와 total이 온다. 여러 파일이 오므로 합산해서 SPEC의 "312MB / 600MB" 표기를 만든다
 - 구간과 시각: return_timestamps 옵션으로 구간별 시작과 끝 시각을 받는다. 한국어는 language를 korean으로 고정하고 task는 transcribe다. 언어 자동 감지에 맡기면 초반 무음 구간에서 오판할 수 있다
-- 긴 오디오: Whisper는 30초 창으로 처리한다. chunk_length_s와 stride 옵션으로 라이브러리가 나눠 처리하게 하고, 변환 진행률은 처리를 마친 시간을 전체 길이로 나눠 만든다
 
 모델 캐시는 transformers.js가 기본으로 브라우저 Cache API에 저장한다. 재방문 판정을 따로 만들지 말고, 캐시가 있으면 progress_callback의 다운로드 이벤트 없이 로드가 끝나는 동작을 그대로 쓴다.
 
+### 창을 두 겹으로 나눈다
+
+Whisper 자체가 30초 창으로 본다. 그것은 `chunk_length_s`와 `stride_length_s`로 라이브러리에 맡긴다.
+
+그 바깥에 120초 창을 하나 더 두고 PCM을 잘라 넣는다. 라이브러리가 변환 도중에 아무 진행 신호도 주지 않기 때문이다. 한 번에 다 넘기면 두 시간짜리 영상에서 진행률이 0에 멈춰 있다가 100으로 뛴다. 바깥 창 하나가 진행률 한 칸이다.
+
+바깥 창은 앞뒤로 5초씩 겹쳐 모델에 넘기고 결과는 겹치지 않는 core 범위만 취한다. 겹침이 없으면 창 경계에 걸친 말이 양쪽에서 잘린다. `transcribe.window.ts`의 `planWindows`가 범위를 만들고 `mergeWindows`가 상대 시각을 절대 시각으로 옮기며 합친다.
+
+### 게이트가 못 잡는 함정 셋
+
+셋 다 타입 검사와 lint, 테스트를 모두 통과하면서 틀린다. 실제로 겪은 것만 적는다.
+
+**dtype 키를 틀리면 조용히 3GB를 받는다.** dtype에 객체를 주려면 키가 파일 이름이 아니라 세션 이름이어야 한다. 인코더의 세션 이름은 `encoder_model`이 아니라 `model`이다. 키가 맞지 않으면 예외가 나지 않고 fp32로 떨어져 600MB 대신 3GB를 받는다. 문자열 하나로 주면 이 실수 자체가 생기지 않는다.
+
+**wasm이 CDN에서 온다.** transformers.js는 불러오는 순간 `env.backends.onnx.wasm.wasmPaths`를 jsdelivr 주소로 채운다. 비워 두면 onnxruntime-web이 번들러가 함께 내보낸 같은 출처의 wasm을 쓴다. 그대로 두면 모델을 다 받은 뒤 23MB짜리 wasm이 밖에서 온다. 개발 서버는 `node_modules`에서 직접 서브해 이 결함을 가린다. 프로덕션 빌드로만 보인다.
+
+**진행 이벤트가 초당 수백 개 온다.** progress_callback은 청크마다 부른다. 손대지 않으면 다운로드 한 번에 만 건이 넘는다. 화면이 표시하는 단위는 MB이므로 MB 값이 바뀔 때만 내보낸다. 거르는 자리는 워커 안이다. 메인 스레드에서 거르면 postMessage 비용은 이미 다 낸 뒤다.
+
 ## Web Worker
 
-모델 로드와 인식은 메인 스레드를 수 분간 막으므로 Web Worker에서 돌린다. Vite에서는 `new Worker(new URL('./stt.worker.ts', import.meta.url), { type: 'module' })` 형태로 만든다. Worker와 메인 사이의 메시지 shape도 공개 타입의 일부다. PCM Float32Array는 postMessage의 transfer 목록에 넣어 복사 없이 넘긴다.
+모델 로드와 인식은 메인 스레드를 수 분간 막으므로 Web Worker에서 돌린다. Vite에서는 `new Worker(new URL('./transcribe.worker.ts', import.meta.url), { type: 'module' })` 형태로 만든다. Worker와 메인 사이의 메시지 shape도 공개 타입의 일부이고 `transcribe.messages.ts`에 있다. PCM Float32Array는 postMessage의 transfer 목록에 넣어 복사 없이 넘긴다.
+
+워커 파일에서는 DOM 타입을 쓸 수 없다. DOM과 WebWorker lib을 함께 켜지 못해서 워커 전역 가운데 실제로 쓰는 것만 인터페이스로 적어 두고 쓴다.
 
 ## 내보내기 생성기
 
 txt와 srt, vtt 생성기는 구간 배열을 받아 문자열을 돌려주는 순수 함수로 만든다. SPEC의 출력 예시가 곧 기대 출력이니 고정 입력을 넣어 예시와 문자 단위로 비교해 확인한다.
 
-시각 표기가 세 형식이 서로 다르다는 점이 이 생성기의 전부다:
+시각 표기가 형식마다 다르다. 세 형식과 화면 목록이 쓰는 계산은 `utils/timecode.ts` 한 곳에 모아 둔다. 같은 산술을 두 번 적으면 한쪽만 고치게 된다:
 
 - txt: 1시간 미만 영상은 `mm:ss`, 1시간 이상은 `h:mm:ss`. 기준은 구간이 아니라 영상 길이다
 - srt: `HH:MM:SS,mmm` 형식에 밀리초를 쉼표로. 자막 번호는 1부터
 - vtt: 첫 줄 `WEBVTT`, 밀리초를 마침표로
 
 파일 이름은 원본 영상 이름에서 확장자만 바꾸고 인코딩은 UTF-8이다.
+
+## 실패 코드와 에러 계층
+
+파이프라인이 던지는 에러는 전부 `PipelineError`를 상속한다. 여기에 `failure` 필드로 SPEC의 실패 코드가 붙는다. 소비자는 단계를 가리지 않고 이 상위 클래스 하나로 검사해 코드를 꺼낸다.
+
+단계별 하위 클래스로 `AudioExtractionError`와 `TranscriptionError`가 있다. 던지는 자리에서 무엇이 터졌는지 이름으로 보이라고 남긴 것이다. 받는 쪽에서 둘을 갈라 보지는 않는다.
+
+에러 메시지는 영어로 쓴다. 이 메시지는 개발자용이라 화면에 나가지 않는데, 한국어로 적어 두면 어쩌다 새어 나갔을 때 그럴듯해 보여 아무도 알아채지 못한다. 화면 문구는 SPEC의 실패 문구 표에서 코드로 고른다.

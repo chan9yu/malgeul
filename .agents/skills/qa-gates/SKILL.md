@@ -21,6 +21,8 @@ pnpm format:check
 
 하나라도 실패하면 완료가 아니다. 게이트를 통과시키려고 lint 규칙을 끄거나 타입을 any로 눌러 놓는 것은 게이트를 통과한 것이 아니라 치운 것이다. 발견하면 실패로 보고한다.
 
+`main`에 푸시하면 GitHub Actions가 build와 test, lint, format:check를 같은 순서로 다시 돌린다. 거기서는 `build`의 `tsc -b`가 타입 검사를 겸한다. 로컬에서 통과한 것만 푸시한다.
+
 ## 경계면 교차 비교
 
 이 프로젝트의 경계면 목록이다. 각 항목은 왼쪽(정본이나 생산자)과 오른쪽(코드나 소비자)을 동시에 열어 비교한다. 해당 모듈이 만들어진 뒤에만 검증할 수 있으므로, 검증 시점에 존재하는 것만 대조하고 나머지는 미검증으로 표시한다.
@@ -58,10 +60,21 @@ node scripts/qa/verify-screen-contents.mjs # 화면이 실제로 닿는 문구 �
 
 ```bash
 node scripts/qa/verify-result-screen.mjs   # 결과 화면. 모델을 받지 않아 빠르다
-node scripts/qa/verify-end-to-end.mjs      # mp4와 mov 종단. 모델 566MB를 받아 10분 넘는다
+node scripts/qa/verify-end-to-end.mjs      # mp4와 mov 종단. 모델 563MB를 받아 10분 넘는다
 node scripts/qa/capture-requests.mjs       # 외부 요청 수집. 마찬가지로 오래 걸린다
 node scripts/qa/measure-audio.mjs <파일>   # 추출한 PCM을 숫자로 잰다
 ```
+
+`chrome.mjs`와 `base-url.mjs`, `checklist.mjs`는 스크립트가 아니라 위 스크립트들이 함께 쓰는 모듈이다. Chrome을 띄우고 붙는 골격과 빈 포트 찾기, `dist/index.html`에서 `base` 읽기, 검사 결과 출력이 여기 있다. 새 스크립트를 만들면 이것들을 쓴다. 같은 골격을 다시 적으면 한 벌에서만 예외를 놓치는 식으로 갈라진다.
+
+종단 확인과 오디오 측정은 `_workspace/fixtures/` 아래 영상을 읽는다. 이 폴더는 `.gitignore`에 있어 clone한 저장소에는 없다. 필요한 파일은 넷이다.
+
+| 파일                | 내용                          |
+| ------------------- | ----------------------------- |
+| `speech-mono.mp4`   | mp4 모노 음성                 |
+| `korean-short.mp4`  | 한국어 음성. 구간 시각 확인용 |
+| `speech-stereo.mov` | mov 스테레오 음성             |
+| `no-audio.mp4`      | 오디오 트랙이 없는 mp4        |
 
 스크립트가 없으면 만들어 `scripts/qa/`에 둔다. 같은 검증을 반복하게 되므로 일회용으로 버리지 않는다.
 
@@ -75,11 +88,13 @@ node scripts/qa/measure-audio.mjs <파일>   # 추출한 PCM을 숫자로 잰다
 
 **게이트에 걸리는 자리에 둔다.** 어느 게이트도 부르지 않는 검사는 한 번도 돌지 않는다. 순수 함수 검사는 `src/**/*.test.ts`로 두어 `pnpm test`가 수집하게 하고, 브라우저가 필요한 것만 `scripts/qa/`에 둔다. 만든 뒤 `pnpm exec vitest list`로 실제 수집되는지 본다.
 
+문서를 읽어 코드와 대조하는 검사도 브라우저가 필요 없으면 여기 해당한다. DESIGN-SPEC의 상태 전이 표와 reducer를 대조하는 검사가 `src/store/app.state.doc.test.ts`에 있다. 전에는 `scripts/qa/`에 있었고 `vitest list`가 0건을 수집했다.
+
 ## ROADMAP 체크리스트 갱신
 
 `docs/product/ROADMAP.md`의 체크박스는 증거가 있을 때만 체크한다. 증거는 게이트 출력이나 실행한 확인 방법이다. "구현했으니 체크"는 증거가 아니다. 체크하면서 리더 보고에 무엇을 어떻게 확인했는지 한 줄씩 남긴다.
 
-수동 확인이 필요한 항목(추출한 음성이 들리는지, 30분 영상의 메모리)은 에이전트가 대신 체크하지 않는다. 사용자에게 확인 방법을 안내하고 미검증으로 남긴다.
+사람이 눈이나 귀로 봐야 하는 항목은 에이전트가 대신 체크하지 않는다. 무엇이 남았고 어떻게 보는지는 ROADMAP의 남은 수동 확인 절에 적혀 있다. 새로 생기면 그 절에 항목과 방법을 함께 적는다.
 
 ## 리포트 형식
 
