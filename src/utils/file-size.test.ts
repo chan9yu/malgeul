@@ -14,7 +14,7 @@ describe('formatFileSize', () => {
 		expect(formatFileSize(1.4 * 1024 * 1024 * 1024)).toBe('1.4GB');
 	});
 
-	it('크기 제한 2GB를 2.0GB로 적는다', () => {
-		expect(formatFileSize(2_147_483_648)).toBe('2.0GB');
+	it('크기 제한 1,992,294,400바이트를 1.9GB로 적는다', () => {
+		expect(formatFileSize(1_992_294_400)).toBe('1.9GB');
 	});
 });

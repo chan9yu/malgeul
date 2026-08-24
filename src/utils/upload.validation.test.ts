@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { FileToCheck } from './upload.validation';
 import { checkDuration, checkSelection, UPLOAD_REJECTION_MESSAGE } from './upload.validation';
 
-const TWO_GIGABYTES = 2_147_483_648;
+const MAX_BYTES = 1_992_294_400;
 const TWO_HOURS_SECONDS = 7_200;
 
 function fileOf(name: string, size = 1_000): FileToCheck {
@@ -47,12 +47,12 @@ describe('checkSelection 확장자', () => {
 });
 
 describe('checkSelection 크기', () => {
-	it('2GB까지 받는다', () => {
-		expect(checkSelection([fileOf('meeting.mp4', TWO_GIGABYTES)])).toBeNull();
+	it('1.9GB까지 받는다', () => {
+		expect(checkSelection([fileOf('meeting.mp4', MAX_BYTES)])).toBeNull();
 	});
 
-	it('2GB를 넘으면 거절한다', () => {
-		expect(checkSelection([fileOf('meeting.mp4', TWO_GIGABYTES + 1)])).toBe('SIZE');
+	it('1.9GB를 넘으면 거절한다', () => {
+		expect(checkSelection([fileOf('meeting.mp4', MAX_BYTES + 1)])).toBe('SIZE');
 	});
 });
 
@@ -62,7 +62,7 @@ describe('checkSelection 검사 순서', () => {
 	});
 
 	it('확장자가 크기보다 먼저 걸린다', () => {
-		expect(checkSelection([fileOf('meeting.avi', TWO_GIGABYTES + 1)])).toBe('EXTENSION');
+		expect(checkSelection([fileOf('meeting.avi', MAX_BYTES + 1)])).toBe('EXTENSION');
 	});
 });
 
@@ -88,7 +88,7 @@ describe('UPLOAD_REJECTION_MESSAGE', () => {
 		expect(UPLOAD_REJECTION_MESSAGE).toEqual({
 			COUNT: '파일은 한 번에 하나만 받습니다',
 			EXTENSION: 'mp4나 mov 파일만 받습니다',
-			SIZE: '2GB를 넘는 파일은 받을 수 없습니다',
+			SIZE: '파일이 1.9GB를 넘습니다. 더 작은 파일을 올려 주세요.',
 			DURATION: '2시간을 넘는 영상은 받을 수 없습니다',
 			METADATA: '영상 정보를 읽지 못했습니다. 파일이 손상되었을 수 있습니다'
 		});
