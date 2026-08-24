@@ -22,9 +22,13 @@ export function UploadArea({ dragging, onFilesPicked }: UploadAreaProps) {
 
 	return (
 		<div
-			className={`flex h-30 flex-col items-center justify-center gap-2 rounded-box border ${dragging ? DRAGGING_CLASS : IDLE_CLASS}`}
+			className={`flex h-60 flex-col items-center justify-center gap-5 rounded-card border-2 ${dragging ? DRAGGING_CLASS : IDLE_CLASS}`}
 		>
-			<p className="text-body text-text-sub">영상 파일을 여기에 끌어다 놓거나</p>
+			{dragging ? (
+				<p className="text-body font-semibold text-brand-strong">여기에 놓으면 업로드됩니다</p>
+			) : (
+				<p className="text-body text-text-sub">영상 파일을 여기에 끌어다 놓거나</p>
+			)}
 			<Button variant="primary" onClick={() => inputRef.current?.click()}>
 				파일 선택
 			</Button>

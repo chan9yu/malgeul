@@ -115,5 +115,5 @@ export function App() {
 		}
 	};
 
-	return <AppFrame>{renderPage()}</AppFrame>;
+	return <AppFrame wide={state.name === 'result'}>{renderPage()}</AppFrame>;
 }

@@ -23,44 +23,38 @@ function readAmountLabel(progress: PipelineProgress) {
 	return `${Math.round(progress.percent)}%`;
 }
 
-function stageTextClass(index: number, currentIndex: number) {
-	if (index === currentIndex) {
-		return 'font-semibold text-text';
-	}
-
-	if (index < currentIndex) {
-		return 'text-text';
-	}
-
-	return 'text-text-sub';
-}
-
 interface ProgressIndicatorProps {
 	progress: PipelineProgress;
 }
 
 export function ProgressIndicator({ progress }: ProgressIndicatorProps) {
-	const currentIndex = PIPELINE_STAGES.indexOf(progress.stage);
-
 	return (
-		<div className="flex flex-col gap-3">
-			<ul className="flex flex-col gap-1">
-				{PIPELINE_STAGES.map((stage, index) => (
-					<li key={stage} className="flex items-center gap-1 text-body">
-						<span className="w-2 text-brand">{index < currentIndex ? '✓' : ''}</span>
-						<span className={stageTextClass(index, currentIndex)}>{STAGE_LABEL[stage]}</span>
-					</li>
-				))}
+		<div className="rounded-card bg-surface p-7">
+			<ul className="flex flex-col gap-4">
+				{PIPELINE_STAGES.map((stage) => {
+					const current = stage === progress.stage;
+
+					return (
+						<li key={stage} className="flex items-center gap-3">
+							<span
+								className={`size-2.5 shrink-0 rounded-pill ${current ? 'bg-brand' : 'border-2 border-border bg-bg'}`}
+							/>
+							<span className={`text-item ${current ? 'font-bold' : 'text-text-sub'}`}>{STAGE_LABEL[stage]}</span>
+						</li>
+					);
+				})}
 			</ul>
 
-			<div className="flex items-center gap-2">
-				<div className="h-1 flex-1 overflow-hidden rounded-box bg-border">
+			<div className="mt-7 flex items-center gap-4">
+				<div className="h-3 flex-1 overflow-hidden rounded-pill bg-border">
 					<div
-						className="h-full rounded-box bg-brand transition-[width]"
+						className="h-full rounded-pill bg-brand transition-[width] duration-300"
 						style={{ width: `${readBarPercent(progress)}%` }}
 					/>
 				</div>
-				<span className="w-16 text-right text-sub tabular-nums text-text-sub">{readAmountLabel(progress)}</span>
+				<span className="shrink-0 text-timestamp font-medium tabular-nums text-text-sub">
+					{readAmountLabel(progress)}
+				</span>
 			</div>
 		</div>
 	);
