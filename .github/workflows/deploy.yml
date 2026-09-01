@@ -36,7 +36,11 @@ jobs:
       - run: pnpm lint
       - run: pnpm format:check
 
+      # 이 액션은 기본값으로 Pages 사이트를 조회만 한다. 저장소에 Pages 가 켜져 있지
+      # 않으면 빌드와 테스트를 다 지난 뒤 여기서 죽는다. 액션이 직접 켜게 둔다.
       - uses: actions/configure-pages@v6
+        with:
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v5
         with:
