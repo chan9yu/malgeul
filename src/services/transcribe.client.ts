@@ -3,7 +3,7 @@ import { PipelineError } from './pipeline.error';
 import { toPercent } from './progress.format';
 import { TranscriptionError } from './transcribe.error';
 import type { WorkerRequest, WorkerResponse } from './transcribe.messages';
-import type { ExtractedAudio, ProgressListener, Transcript, TranscriptionFailure, TranscriptSegment } from './types';
+import type { ExtractedAudio, ProgressListener, Transcript, TranscriptionFailure } from './types';
 
 interface WorkerStage<Done extends WorkerResponse['type']> {
 	worker: Worker;
@@ -23,11 +23,18 @@ export async function transcribeVideo(file: File, onProgress?: ProgressListener)
 		worker = createWorker();
 		await loadModel(worker, onProgress);
 		const audio = await getAudio(file, onProgress);
-		const segments = await runTranscription(worker, audio, onProgress);
+		const done = await runTranscription(worker, audio, onProgress);
 
 		return {
-			segments,
-			durationSeconds: audio.durationSeconds
+			segments: done.segments,
+			durationSeconds: audio.durationSeconds,
+			transcribeMs: done.transcribeMs,
+			windowMsList: done.windowMsList,
+			windowTokenCounts: done.windowTokenCounts,
+			trimmedByWindow: done.trimmedByWindow,
+			phraseRepeatsByWindow: done.phraseRepeatsByWindow,
+			repeatedSegmentChars: done.repeatedSegmentChars,
+			plan: done.plan
 		};
 	} catch (cause) {
 		throw toPipelineError(cause);
@@ -124,11 +131,7 @@ async function getAudio(file: File, onProgress?: ProgressListener) {
 	return audio;
 }
 
-async function runTranscription(
-	worker: Worker,
-	audio: ExtractedAudio,
-	onProgress?: ProgressListener
-): Promise<TranscriptSegment[]> {
+async function runTranscription(worker: Worker, audio: ExtractedAudio, onProgress?: ProgressListener) {
 	onProgress?.({ kind: 'percent', stage: 'transcribe', percent: 0 });
 
 	const request: WorkerRequest = { type: 'transcribe', pcm: audio.pcm, sampleRate: audio.sampleRate };
@@ -150,5 +153,5 @@ async function runTranscription(
 
 	onProgress?.({ kind: 'percent', stage: 'transcribe', percent: 100 });
 
-	return response.segments;
+	return response;
 }

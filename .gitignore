@@ -34,3 +34,6 @@ _workspace
 
 # 디자인 시안 원본 (임시 URL 에서 받은 번들. 값은 docs/design 에 옮겨 적는다)
 design
+
+# QA 측정이 페이지로 넘기려고 두는 원본. 정상 종료 때 지우지만 중간에 죽으면 남는다
+public/qa-transcribe-source.*
