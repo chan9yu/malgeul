@@ -7,11 +7,40 @@
 // 모델 563MB 를 처음 한 번 내려받고 변환에 영상 길이만큼 걸릴 수 있다.
 
 import { spawn } from 'node:child_process';
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { access, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { basename, extname, join, resolve } from 'node:path';
 
 import { readBase } from './base-url.mjs';
 import { findFreePort, launchChrome, wait, waitForUrl } from './chrome.mjs';
+
+// 페이지가 다시 불리는 원인이 둘이라 구분에 쓴다. vite 가 의존성을 처음 발견해 최적화하면
+// 저장소 파일을 아무도 안 건드려도 full reload 가 걸린다.
+// 상위 .vite 에는 vitest 의 캐시도 있어서 게이트를 돌리면 같이 갱신된다. deps 만 본다
+const VITE_DEPS_DIR = 'node_modules/.vite/deps';
+
+async function newestViteDepsMtime(dir = VITE_DEPS_DIR) {
+	let newest = 0;
+	let entries;
+	try {
+		entries = await readdir(dir, { withFileTypes: true });
+	} catch {
+		return 0;
+	}
+
+	for (const entry of entries) {
+		const path = join(dir, entry.name);
+		if (entry.isDirectory()) {
+			newest = Math.max(newest, await newestViteDepsMtime(path));
+			continue;
+		}
+		const info = await stat(path).catch(() => null);
+		if (info) {
+			newest = Math.max(newest, info.mtimeMs);
+		}
+	}
+
+	return newest;
+}
 
 const POLL_MS = 5_000;
 const IDLE_LIMIT_MS = 600_000;
@@ -39,7 +68,7 @@ const servedPath = join('public', servedName);
 await writeFile(servedPath, await readFile(sourcePath));
 
 const START = `(async () => {
-	const { transcribeVideo } = await import('${base}src/services/index.ts');
+	const { transcribeVideo, formatBytesProgress } = await import('${base}src/services/index.ts');
 	const bytes = await (await fetch('${base}${servedName}')).arrayBuffer();
 	const file = new File([bytes], ${JSON.stringify(basename(sourcePath))}, { type: 'video/mp4' });
 
@@ -49,18 +78,30 @@ const START = `(async () => {
 		const percent = progress.kind === 'percent'
 			? Math.round(progress.percent)
 			: Math.round((progress.loadedBytes / progress.totalBytes) * 100);
-		const label = progress.kind === 'bytes'
-			? Math.round(progress.loadedBytes / 1048576) + 'MB / ' + Math.round(progress.totalBytes / 1048576) + 'MB'
-			: percent + '%';
+		// 앱이 쓰는 표기를 그대로 부른다. 여기서 따로 계산하면 단위가 갈린다
+		const label = progress.kind === 'bytes' ? formatBytesProgress(progress) : percent + '%';
 		window.qaState = { ...window.qaState, stage: progress.stage, percent, label };
 	}).then((transcript) => {
 		window.qaState = { ...window.qaState, done: true, transcript };
 	}).catch((cause) => {
-		window.qaState = { ...window.qaState, done: true, error: String(cause && cause.failure ? cause.failure : cause) };
+		// 실패 코드만 남기면 왜 터졌는지가 사라진다. 워커가 함께 보낸 메시지를 살려 둔다
+		const failure = cause && cause.failure ? cause.failure : null;
+		// TranscriptionError 는 message 를 실패 코드로 만들고 진짜 내용을 cause 에 넣는다.
+		// message 만 읽으면 "transcription failed: TRANSCRIBE" 만 남는다
+		const detail = cause && cause.cause !== undefined && cause.cause !== null ? String(cause.cause) : null;
+		const message = detail ?? (cause && cause.message ? cause.message : String(cause));
+		const stack = cause && cause.stack ? String(cause.stack).slice(0, 400) : null;
+		window.qaState = {
+			...window.qaState,
+			done: true,
+			error: failure ? failure + ': ' + message : message,
+			errorStack: stack
+		};
 	});
 	return true;
 })()`;
 
+const depsMtimeAtStart = await newestViteDepsMtime();
 const server = spawn('npx', ['vite', '--port', String(port), '--strictPort'], { stdio: 'ignore' });
 const chrome = await launchChrome({ profilePrefix: 'malgeul-transcribe-' });
 
@@ -101,12 +142,20 @@ try {
 		await wait(POLL_MS);
 		state = await evaluate('window.qaState ?? null');
 
-		// 개발 서버가 파일 변경을 보면 페이지를 다시 부르고 진행 상태가 사라진다.
-		// 여기서 알아채지 않으면 무슨 일이 일어났는지 모르는 채로 죽는다
+		// 페이지가 다시 불리면 진행 상태가 사라진다. 여기서 알아채지 않으면
+		// 무슨 일이 일어났는지 모르는 채로 죽는다
 		if (state === null) {
 			const stillRunning = await evaluate(`window.qaRunId === ${JSON.stringify(String(process.pid))}`);
+			if (stillRunning) {
+				throw new Error('진행 상태가 사라졌다');
+			}
+
+			// 원인이 둘이라 단정하지 않는다. 의존성 재최적화면 한 번 더 돌리면 지나간다
+			const reoptimized = (await newestViteDepsMtime()) > depsMtimeAtStart;
 			throw new Error(
-				stillRunning ? '진행 상태가 사라졌다' : '페이지가 다시 불렸다. 변환 중에는 저장소 파일을 고치지 않는다'
+				reoptimized
+					? 'vite 가 의존성을 다시 최적화해 페이지를 다시 불렀다. 저장소 파일 탓이 아니다. 한 번 더 돌리면 캐시가 채워져 지나간다'
+					: '저장소 파일이 바뀌어 페이지를 다시 불렀다. 변환 중에는 저장소 파일을 고치지 않는다'
 			);
 		}
 
@@ -129,13 +178,22 @@ try {
 	}
 
 	if (state.error) {
+		if (state.errorStack) {
+			console.log(`스택: ${state.errorStack}`);
+		}
 		throw new Error(`변환 실패: ${state.error}`);
 	}
 
 	const written = await evaluate(`(async () => {
 		const { buildTxt, buildSrt, buildVtt } = await import('${base}src/services/export.format.ts');
 		const t = window.qaState.transcript;
-		return { txt: buildTxt(t), srt: buildSrt(t), vtt: buildVtt(t), count: t.segments.length, seconds: t.durationSeconds };
+		return {
+			txt: buildTxt(t), srt: buildSrt(t), vtt: buildVtt(t),
+			count: t.segments.length, seconds: t.durationSeconds,
+			transcribeMs: t.transcribeMs ?? null, windowMsList: t.windowMsList ?? null,
+			windowTokenCounts: t.windowTokenCounts ?? null, trimmedByWindow: t.trimmedByWindow ?? null, phraseRepeatsByWindow: t.phraseRepeatsByWindow ?? null, repeatedSegmentChars: t.repeatedSegmentChars ?? null,
+			plan: t.plan ?? null
+		};
 	})()`);
 
 	for (const format of ['txt', 'srt', 'vtt']) {
@@ -145,7 +203,90 @@ try {
 	}
 
 	const minutes = ((Date.now() - startedAt) / 60000).toFixed(1);
-	console.log(`\n문장 ${written.count}개, 음성 ${(written.seconds / 60).toFixed(1)}분, 변환 ${minutes}분`);
+	console.log(`\n문장 ${written.count}개, 음성 ${(written.seconds / 60).toFixed(1)}분, 전체 ${minutes}분`);
+
+	if (written.transcribeMs) {
+		const seconds = written.transcribeMs / 1000;
+		console.log(`변환 단계 ${(seconds / 60).toFixed(1)}분, ${(written.seconds / seconds).toFixed(1)}배속`);
+	}
+
+	// 조용히 지우지 않는다. 줄인 것이 있으면 반드시 찍는다
+	if (written.trimmedByWindow?.length) {
+		const total = written.trimmedByWindow.reduce((a, b) => a + b, 0);
+		if (total > 0) {
+			const where = written.trimmedByWindow.map((n, i) => (n > 0 ? `창 ${i}에서 ${n}자` : null)).filter(Boolean);
+			console.log(`병적 반복을 줄였다: 모두 ${total}자 (${where.join(', ')})`);
+		} else {
+			console.log('병적 반복 없음');
+		}
+	}
+
+	// 자르지 않는 값이라 반드시 보여야 한다. 안 보이면 없는 것과 구분이 안 된다
+	if (written.phraseRepeatsByWindow?.length) {
+		const total = written.phraseRepeatsByWindow.reduce((a, b) => a + b, 0);
+		const where = written.phraseRepeatsByWindow.map((n, i) => (n > 0 ? `창 ${i}:${n}자` : null)).filter(Boolean);
+		console.log(`조각 되풀이(안 자름) 모두 ${total}자${where.length ? ` (${where.join(', ')})` : ''}`);
+	}
+
+	if (written.repeatedSegmentChars !== null && written.repeatedSegmentChars !== undefined) {
+		console.log(`구간 경계를 넘는 되풀이(안 자름) ${written.repeatedSegmentChars}자`);
+	}
+
+	if (written.plan) {
+		const {
+			windowSeconds,
+			windowCount,
+			chunkCount,
+			chunkCounts,
+			skippedRanges,
+			silenceGapCount,
+			minSilenceSeconds,
+			skippedSilenceSeconds
+		} = written.plan;
+		const skipped =
+			minSilenceSeconds === null
+				? '건너뛴 무음 없음'
+				: `무음 ${minSilenceSeconds}초 기준으로 ${skippedSilenceSeconds}초 건너뜀`;
+		console.log(`창 ${windowSeconds}초 ${windowCount}칸, 조각 ${chunkCount}개`);
+		console.log(`무음 검출 ${silenceGapCount}구간, ${skipped}`);
+		if (skippedRanges?.length) {
+			const spans = skippedRanges.map((r) => `${r.startSeconds.toFixed(0)}-${r.endSeconds.toFixed(0)}`);
+			console.log(`건너뛴 구간: ${spans.join(', ')}`);
+		}
+
+		// 창별 시간과 조각 수를 짝지어 둔다. 조각 수가 같은 창끼리 시간 차가 디코더 몫이다
+		if (written.windowMsList?.length) {
+			const pairs = written.windowMsList.map((ms, i) => `${chunkCounts?.[i] ?? '?'}조각 ${ms}ms`);
+			console.log(`창별: ${pairs.join(', ')}`);
+		}
+
+		// 배치 이득 상한은 배치 크기가 아니라 합 나누기 최대다. 창마다 그 값을 낸다
+		if (written.windowTokenCounts?.length) {
+			console.log('\n창별 generate 호출과 토큰 수');
+			let totalCalls = 0;
+			const ratios = [];
+			written.windowTokenCounts.forEach((counts, i) => {
+				if (counts.length === 0) {
+					return;
+				}
+				const sum = counts.reduce((a, b) => a + b, 0);
+				const max = Math.max(...counts);
+				totalCalls += counts.length;
+				ratios.push(sum / max);
+				console.log(
+					`  창 ${i}: 조각 ${chunkCounts?.[i] ?? '?'}, 호출 ${counts.length}, 토큰 [${counts.join(', ')}], 합/최대 ${(sum / max).toFixed(2)}`
+				);
+			});
+			const chunkTotal = (chunkCounts ?? []).reduce((a, b) => a + b, 0);
+			console.log(
+				`generate 호출 ${totalCalls}회, 조각 ${chunkTotal}개 -> 조각당 ${(totalCalls / chunkTotal).toFixed(2)}회`
+			);
+			if (ratios.length) {
+				const mean = ratios.reduce((a, b) => a + b, 0) / ratios.length;
+				console.log(`창별 합/최대 평균 ${mean.toFixed(2)} (배치로 얻을 수 있는 상한)`);
+			}
+		}
+	}
 } finally {
 	await chrome.close();
 	server.kill();
