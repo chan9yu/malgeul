@@ -52,10 +52,40 @@ export interface TranscriptSegment {
 	text: string;
 }
 
+/** 계측용 계획 요약. 변경 전후를 견줄 때 무음 이득을 추정 없이 그대로 읽는 자리다 */
+export interface TranscribePlanSummary {
+	windowSeconds: number;
+	windowCount: number;
+	chunkCount: number;
+	/** 창 순서대로 각 창이 뜨는 조각 수. 창별 시간과 짝지어 인코더 몫을 가른다 */
+	chunkCounts: number[];
+	/** 실제로 건너뛴 구간. 빠진 문장이 이 안에 드는지 대조하는 자리다 */
+	skippedRanges: { startSeconds: number; endSeconds: number }[];
+	/** 검출이 찾은 무음 구간 수. 0 이면 찾은 것이 없다는 뜻이라 계측이 안 붙은 경우와 갈린다 */
+	silenceGapCount: number;
+	/** 고른 문턱값(초). 아무 무음도 건너뛰지 않았으면 null 이다 */
+	minSilenceSeconds: number | null;
+	/** 실제로 건너뛴 무음의 합(초) */
+	skippedSilenceSeconds: number;
+}
+
 export interface Transcript {
 	segments: TranscriptSegment[];
 	/** 추출한 음성의 길이. 시각 표기를 mm:ss와 h:mm:ss 가운데 고르는 기준이다 */
 	durationSeconds: number;
+	/** 아래는 계측용 선택 필드다. 화면은 읽지 않는다 */
+	transcribeMs?: number;
+	/** 창 순서대로 각 창에 걸린 밀리초. 조각 수와 견주어 인코더와 디코더 몫을 가른다 */
+	windowMsList?: number[];
+	/** 창마다 generate 호출별 생성 토큰 수. 호출 수는 seek 반복 횟수이기도 하다 */
+	windowTokenCounts?: number[][];
+	/** 창마다 병적 반복을 줄이며 없앤 글자 수. 조용히 지우지 않으려고 남긴다 */
+	trimmedByWindow?: number[];
+	/** 창마다 조각 되풀이 글자 수. 세기만 하고 자르지 않는다 */
+	phraseRepeatsByWindow?: number[];
+	/** 이웃한 구간이 같은 말을 되풀이한 글자 수. 구간 경계를 넘는 되풀이는 창 단위로 못 센다 */
+	repeatedSegmentChars?: number;
+	plan?: TranscribePlanSummary;
 }
 
 /** 내보내기 형식이자 저장 파일의 확장자로 그대로 쓰인다 */
