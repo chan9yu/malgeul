@@ -81,16 +81,49 @@ async function waitForDebugger(profileDir) {
 	throw new Error('Chrome 디버깅 포트에 붙지 못했다');
 }
 
+/**
+ * 응답을 이만큼 기다리다 포기한다. 페이지가 다시 불리거나 렌더러가 죽으면 세션이 낡아
+ * 응답이 영영 안 오는데, 시한이 없으면 스크립트가 그 자리에서 멈춘 채로 남는다.
+ * 폴링 루프의 유휴 판정은 이 await 뒤에 있어서 그때는 절대 못 돈다.
+ * START 평가가 큰 파일을 받는 동안 길어질 수 있어 넉넉히 잡는다.
+ */
+const CDP_TIMEOUT_MS = 120_000;
+
 function createClient(socket, onEvent) {
 	const pending = new Map();
 	let lastId = 0;
+
+	const rejectAll = (reason) => {
+		for (const [, settle] of pending) {
+			settle.reject(new Error(reason));
+		}
+		pending.clear();
+	};
 
 	const send = (method, params = {}, sessionId) => {
 		lastId += 1;
 		const id = lastId;
 
-		return new Promise((resolve) => {
-			pending.set(id, resolve);
+		return new Promise((resolve, reject) => {
+			const timer = setTimeout(() => {
+				pending.delete(id);
+				reject(
+					new Error(
+						`CDP 응답이 없다: ${method} (${CDP_TIMEOUT_MS / 1000}초). 페이지가 다시 불렸거나 렌더러가 죽었을 수 있다`
+					)
+				);
+			}, CDP_TIMEOUT_MS);
+
+			pending.set(id, {
+				resolve: (value) => {
+					clearTimeout(timer);
+					resolve(value);
+				},
+				reject: (cause) => {
+					clearTimeout(timer);
+					reject(cause);
+				}
+			});
 			socket.send(JSON.stringify({ id, method, params, sessionId }));
 		});
 	};
@@ -105,9 +138,12 @@ function createClient(socket, onEvent) {
 		const settle = pending.get(message.id);
 		if (settle) {
 			pending.delete(message.id);
-			settle(message);
+			settle.resolve(message);
 		}
 	});
+
+	socket.addEventListener('close', () => rejectAll('CDP 연결이 끊겼다'));
+	socket.addEventListener('error', () => rejectAll('CDP 연결에 오류가 났다'));
 
 	return send;
 }
